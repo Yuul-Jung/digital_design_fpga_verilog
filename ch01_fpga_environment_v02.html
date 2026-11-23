@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="부울대수 → 기본 게이트 → 벡터·연산자 → 74 시리즈 → 구조적 설계"><title>제02장 · 논리 게이트와 Verilog · Digital Design · FPGA · Verilog</title>
+<meta name="description" content="Vivado 설치 → 보드 인식 → XDC → SW0으로 LED0 제어"><title>제01장 · 개발환경과 첫 실습 · Digital Design · FPGA · Verilog</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>/*
@@ -576,1208 +576,1149 @@ pre code {
     height: auto;
   }
 }
-</style></head><body data-chapter="ch02">
+
+/* 저장소별 추가: 본문 그림·캡션 (digital_design_fpga_verilog) */
+.section img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 18px auto 6px;
+  border: 1px solid #e1e1dc;
+  border-radius: 8px;
+  background: #ffffff;
+  max-height: 640px;
+  width: auto;
+  object-fit: contain;
+}
+.section p > img + em,
+.section p > em.caption {
+  display: block;
+  margin: 0 auto 14px;
+  text-align: center;
+  font-size: 0.84rem;
+  font-style: normal;
+  color: #5b5e68;
+}
+</style></head><body data-chapter="ch01">
 <button type="button" class="mobile-menu" id="mobile-menu" aria-controls="course-nav" aria-expanded="false">☰ 장·목차</button><div class="shade" id="shade"></div>
-<header class="hero"><div class="hero-inner"><p class="kicker">DIGITAL DESIGN FPGA · CHAPTER 02</p><h1>제02장 · 논리 게이트와 Verilog</h1><p>부울대수 → 기본 게이트 → 벡터·연산자 → 74 시리즈 → 구조적 설계</p><div class="chips"><span class="chip">Gate</span><span class="chip">Vector</span><span class="chip">74HC51</span><span class="chip">Instance</span></div></div></header>
-<div class="wrap"><nav class="toc" id="course-nav" aria-label="장과 절 탐색"></nav><main class="content" id="main-content"><section class="section" id="s00"><h2><span class="num">00</span>학습 안내</h2><p>이 장은 디지털 회로의 가장 작은 단위인 <strong>논리 게이트(Logic Gate)</strong> 를 Verilog로 만들고 Basys3의 스위치·LED로 확인합니다. 부울대수 공리에서 출발해 기본 게이트, Verilog 연산자와 벡터, 74 시리즈 IC 모델링, 그리고 모듈을 조립하는 <strong>구조적 설계</strong>까지 이어집니다.</p>
+<header class="hero"><div class="hero-inner"><p class="kicker">DIGITAL DESIGN FPGA · CHAPTER 01</p><h1>제01장 · 개발환경과 첫 실습</h1><p>Vivado 설치 → 보드 인식 → XDC → SW0으로 LED0 제어</p><div class="chips"><span class="chip">Ubuntu</span><span class="chip">Vivado 2024.2</span><span class="chip">Basys3</span><span class="chip">XDC</span></div></div></header>
+<div class="wrap"><nav class="toc" id="course-nav" aria-label="장과 절 탐색"></nav><main class="content" id="main-content"><section class="section" id="s00"><h2><span class="num">00</span>학습 안내</h2><p><strong>잘 시작하면 반은 끝난 것입니다.</strong> 이 장에서는 Ubuntu(우분투) 24.04에 AMD Vivado(비바도, FPGA 설계 도구) 2024.2를 설치하고, Basys3 보드를 PC에서 인식시킨 뒤, 스위치 하나로 LED 하나를 켜는 첫 회로까지 완성합니다.</p>
 <table>
 <thead>
 <tr>
-  <th>실습</th>
-  <th>입력</th>
-  <th>출력</th>
-  <th>핵심</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>부울대수 공리</td>
-  <td>SW0</td>
-  <td>LED0~3</td>
-  <td>상수와의 AND/OR</td>
-</tr>
-<tr>
-  <td>기본 논리 게이트</td>
-  <td>SW0, SW1</td>
-  <td>LED0~7</td>
-  <td>AND·OR·NOT·XOR 연산자</td>
-</tr>
-<tr>
-  <td>XOR / XNOR 심화</td>
-  <td>SW0, SW1</td>
-  <td>LED0~7</td>
-  <td>같음·다름 검출</td>
-</tr>
-<tr>
-  <td>74HC51 AOI 게이트</td>
-  <td>SW0~9</td>
-  <td>LED0~1</td>
-  <td>데이터시트 → RTL</td>
-</tr>
-<tr>
-  <td>게이트 모듈 구조화</td>
-  <td>SW0, SW1</td>
-  <td>LED0~6</td>
-  <td>Module과 Instance</td>
-</tr>
-</tbody>
-</table>
-<p>모든 실습은 같은 흐름을 따릅니다.</p>
-<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>Create Project → Verilog 작성 → XDC 작성 → Run Synthesis
-→ Run Implementation → Generate Bitstream → Program Device → 동작 확인
-</code></pre></div>
-</section><section class="section" id="s01"><h2><span class="num">01</span>부울대수 공리 실습</h2><p>부울대수(Boolean Algebra)의 기본 공리를 FPGA에서 직접 구현해, 수식이 실제 하드웨어에서 어떻게 동작하는지 확인합니다.</p>
-<table>
-<thead>
-<tr>
-  <th>LED</th>
-  <th>논리식</th>
-  <th>이름</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>LED0</td>
-  <td>X·1 = X</td>
-  <td>AND 항등 법칙 (Identity)</td>
-</tr>
-<tr>
-  <td>LED1</td>
-  <td>X+0 = X</td>
-  <td>OR 항등 법칙 (Identity)</td>
-</tr>
-<tr>
-  <td>LED2</td>
-  <td>X·0 = 0</td>
-  <td>영 법칙 (Null)</td>
-</tr>
-<tr>
-  <td>LED3</td>
-  <td>X+1 = 1</td>
-  <td>지배 법칙 (Dominance)</td>
-</tr>
-</tbody>
-</table>
-<p>프로젝트명은 <code>boolean_axiom</code>, 보드는 Basys3(<code>xc7a35tcpg236-1</code>)입니다.</p>
-<p>파일명: <code>top.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module top(
-    input  wire [0:0] sw,
-    output wire [3:0] led
-);
-
-    assign led[0] = sw[0] &amp; 1'b1;   // X · 1 = X
-    assign led[1] = sw[0] | 1'b0;   // X + 0 = X
-    assign led[2] = sw[0] &amp; 1'b0;   // X · 0 = 0
-    assign led[3] = sw[0] | 1'b1;   // X + 1 = 1
-
-endmodule
-</code></pre></div>
-<p>파일명: <code>Basys3_Master.xdc</code></p>
-<div class="codeblock"><div class="codebar"><span>tcl</span></div><pre><code>set_property PACKAGE_PIN V17 [get_ports {sw[0]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {sw[0]}]
-
-set_property PACKAGE_PIN U16 [get_ports {led[0]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {led[0]}]
-set_property PACKAGE_PIN E19 [get_ports {led[1]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {led[1]}]
-set_property PACKAGE_PIN U19 [get_ports {led[2]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {led[2]}]
-set_property PACKAGE_PIN V19 [get_ports {led[3]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {led[3]}]
-</code></pre></div>
-<p>예상 결과:</p>
-<table>
-<thead>
-<tr>
-  <th style="text-align:center">SW0</th>
-  <th style="text-align:center">LED0</th>
-  <th style="text-align:center">LED1</th>
-  <th style="text-align:center">LED2</th>
-  <th style="text-align:center">LED3</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-</tr>
-<tr>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-</tr>
-</tbody>
-</table>
-<p>LED0·LED1은 입력을 그대로 따라가고, LED2는 항상 꺼져 있으며, LED3은 항상 켜져 있습니다.</p>
-<p><strong>생각해 보기</strong></p>
-<ol>
-<li>왜 X·0은 항상 0인가?</li>
-<li>왜 X+1은 항상 1인가?</li>
-<li>Vivado의 합성 결과에서 LED2·LED3에는 어떤 회로가 남는가?</li>
-</ol>
-</section><section class="section" id="s02"><h2><span class="num">02</span>모듈명과 비트 표기</h2><p><strong>모듈명 규칙</strong></p>
-<p>Verilog에서 회로 단위는 <code>module</code>이며, 모듈명으로 회로 블록을 구분합니다. Vivado는 모듈명을 기준으로 Top Module 지정, 계층 분석, 합성·구현을 수행합니다.</p>
-<table>
-<thead>
-<tr>
-  <th>규칙</th>
-  <th>올바른 예</th>
-  <th>잘못된 예</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>영문·숫자·<code>_</code>만 사용</td>
-  <td><code>led_controller</code></td>
-  <td><code>led-controller</code></td>
-</tr>
-<tr>
-  <td>숫자로 시작 금지</td>
-  <td><code>adder_4bit</code></td>
-  <td><code>4bit_adder</code></td>
-</tr>
-<tr>
-  <td>공백 금지</td>
-  <td><code>uart_tx</code></td>
-  <td><code>uart tx</code></td>
-</tr>
-<tr>
-  <td>대소문자 구분</td>
-  <td><code>top</code> ≠ <code>Top</code></td>
-  <td></td>
-</tr>
-<tr>
-  <td>파일명 = 모듈명</td>
-  <td><code>counter.v</code> ↔ <code>module counter</code></td>
-  <td>이름이 다르면 오류가 잦음</td>
-</tr>
-</tbody>
-</table>
-<p>입문 실습에서는 <code>top.v</code> ↔ <code>module top</code>이 가장 단순하고, 심화 과정에서는 기능별 파일(<code>counter.v</code>, <code>decoder.v</code>, <code>uart_tx.v</code>)로 나눕니다. 이름은 <code>snake_case</code>(<code>clock_divider</code>, <code>sevenseg_decoder</code>)를 권장합니다.</p>
-<p><strong>비트 값 표기</strong> — <code>비트수'진법값</code></p>
-<table>
-<thead>
-<tr>
-  <th>표기</th>
-  <th>의미</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><code>1'b1</code>, <code>1'b0</code></td>
-  <td>1비트 이진값 1, 0</td>
-</tr>
-<tr>
-  <td><code>4'b1010</code></td>
-  <td>4비트 이진값 1010</td>
-</tr>
-<tr>
-  <td><code>8'b0000_1111</code></td>
-  <td>8비트 이진값, <code>_</code>는 가독성용 구분자</td>
-</tr>
-<tr>
-  <td><code>4'd10</code></td>
-  <td>4비트 10진수 10</td>
-</tr>
-<tr>
-  <td><code>4'hA</code>, <code>8'hFF</code></td>
-  <td>16진수 값</td>
-</tr>
-</tbody>
-</table>
-</section><section class="section" id="s03"><h2><span class="num">03</span>기본 논리 게이트</h2><p>논리 게이트는 입력·출력·논리 연산으로 구성된 디지털 시스템의 기본 스위칭 소자입니다. 게이트를 조합해 <strong>현재 입력만으로 출력이 즉시 결정되는</strong> 조합논리회로(가산기, 비교기, MUX, 디코더)를 만듭니다. 진리표(Truth Table)는 입력 변화에 따른 출력을 정리한 표이며, 0은 LOW, 1은 HIGH를 뜻합니다.</p>
-<table>
-<thead>
-<tr>
-  <th>게이트</th>
-  <th>논리식</th>
-  <th>출력이 1이 되는 조건</th>
-  <th>쓰임</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>AND</td>
-  <td>Y = A·B</td>
-  <td>모두 1</td>
-  <td>인터록(비밀번호 + 지문)</td>
-</tr>
-<tr>
-  <td>OR</td>
-  <td>Y = A+B</td>
-  <td>하나라도 1</td>
-  <td>경보(화재 또는 침입)</td>
-</tr>
-<tr>
-  <td>NOT</td>
-  <td>Y = A'</td>
-  <td>입력이 0</td>
-  <td>인버터, 두 번 반전하면 원래 값</td>
-</tr>
-<tr>
-  <td>BUFFER</td>
-  <td>Y = A</td>
-  <td>입력이 1</td>
-  <td>파형 정형·전류 증대·지연, FPGA의 BUFG·I/O 버퍼</td>
-</tr>
-<tr>
-  <td>NAND</td>
-  <td>Y = (A·B)'</td>
-  <td>모두 1일 때만 0</td>
-  <td><strong>범용 게이트</strong></td>
-</tr>
-<tr>
-  <td>NOR</td>
-  <td>Y = (A+B)'</td>
-  <td>모두 0일 때만 1</td>
-  <td>범용 게이트</td>
-</tr>
-<tr>
-  <td>XOR</td>
-  <td>Y = A⊕B</td>
-  <td>서로 다름</td>
-  <td>덧셈기, 패리티</td>
-</tr>
-<tr>
-  <td>XNOR</td>
-  <td>Y = (A⊕B)'</td>
-  <td>서로 같음</td>
-  <td>동등 비교기</td>
-</tr>
-</tbody>
-</table>
-<p><strong>진리표</strong></p>
-<table>
-<thead>
-<tr>
-  <th style="text-align:center">A</th>
-  <th style="text-align:center">B</th>
-  <th style="text-align:center">AND</th>
-  <th style="text-align:center">OR</th>
-  <th style="text-align:center">NAND</th>
-  <th style="text-align:center">NOR</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-</tr>
-<tr>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-</tr>
-</tbody>
-</table>
-<table>
-<thead>
-<tr>
-  <th style="text-align:center">A</th>
-  <th style="text-align:center">B</th>
-  <th style="text-align:center">XOR</th>
-  <th style="text-align:center">XNOR</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-</tr>
-<tr>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-</tr>
-</tbody>
-</table>
-<p>NAND만으로 AND·OR·NOT·XOR·플립플롭까지 모든 디지털 회로를 만들 수 있어 실제 IC 내부에서 매우 많이 쓰입니다. 게이트 기호의 작은 동그라미 <strong>버블(Bubble)</strong> 은 반전을 뜻하며, 출력 버블은 출력 반전, 입력 버블은 입력 반전입니다.</p>
-</section><section class="section" id="s04"><h2><span class="num">04</span>논리 게이트 FPGA 실습</h2><p>SW0을 X, SW1을 Y로 두고 여덟 가지 게이트 결과를 LED에 동시에 표시합니다. 프로젝트명은 <code>logic_gate_practice</code>입니다.</p>
-<table>
-<thead>
-<tr>
-  <th>LED</th>
-  <th>논리식</th>
-  <th>게이트</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>LED0</td>
-  <td>X·Y</td>
-  <td>AND</td>
-</tr>
-<tr>
-  <td>LED1</td>
-  <td>X+Y</td>
-  <td>OR</td>
-</tr>
-<tr>
-  <td>LED2</td>
-  <td>X'</td>
-  <td>NOT X</td>
-</tr>
-<tr>
-  <td>LED3</td>
-  <td>Y'</td>
-  <td>NOT Y</td>
-</tr>
-<tr>
-  <td>LED4</td>
-  <td>(X·Y)'</td>
-  <td>NAND</td>
-</tr>
-<tr>
-  <td>LED5</td>
-  <td>(X+Y)'</td>
-  <td>NOR</td>
-</tr>
-<tr>
-  <td>LED6</td>
-  <td>X</td>
-  <td>BUFFER</td>
-</tr>
-<tr>
-  <td>LED7</td>
-  <td>X⊕Y</td>
-  <td>XOR</td>
-</tr>
-</tbody>
-</table>
-<p>파일명: <code>top.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module top(
-    input  wire [1:0] sw,
-    output wire [7:0] led
-);
-
-    assign led[0] = sw[0] &amp; sw[1];      // AND
-    assign led[1] = sw[0] | sw[1];      // OR
-    assign led[2] = ~sw[0];             // NOT X
-    assign led[3] = ~sw[1];             // NOT Y
-    assign led[4] = ~(sw[0] &amp; sw[1]);   // NAND
-    assign led[5] = ~(sw[0] | sw[1]);   // NOR
-    assign led[6] = sw[0];              // BUFFER
-    assign led[7] = sw[0] ^ sw[1];      // XOR
-
-endmodule
-</code></pre></div>
-<p>파일명: <code>Basys3_Master.xdc</code></p>
-<div class="codeblock"><div class="codebar"><span>tcl</span></div><pre><code>set_property PACKAGE_PIN V17 [get_ports {sw[0]}]
-set_property PACKAGE_PIN V16 [get_ports {sw[1]}]
-set_property PACKAGE_PIN U16 [get_ports {led[0]}]
-set_property PACKAGE_PIN E19 [get_ports {led[1]}]
-set_property PACKAGE_PIN U19 [get_ports {led[2]}]
-set_property PACKAGE_PIN V19 [get_ports {led[3]}]
-set_property PACKAGE_PIN W18 [get_ports {led[4]}]
-set_property PACKAGE_PIN U15 [get_ports {led[5]}]
-set_property PACKAGE_PIN U14 [get_ports {led[6]}]
-set_property PACKAGE_PIN V14 [get_ports {led[7]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {sw[*] led[*]}]
-</code></pre></div>
-<p>예상 결과(열 제목은 입력 XY):</p>
-<table>
-<thead>
-<tr>
-  <th>LED</th>
-  <th>게이트</th>
-  <th style="text-align:center">00</th>
-  <th style="text-align:center">01</th>
-  <th style="text-align:center">10</th>
-  <th style="text-align:center">11</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>LED0</td>
-  <td>AND</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-</tr>
-<tr>
-  <td>LED1</td>
-  <td>OR</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-</tr>
-<tr>
-  <td>LED2</td>
-  <td>NOT X</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td>LED3</td>
-  <td>NOT Y</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td>LED4</td>
-  <td>NAND</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td>LED5</td>
-  <td>NOR</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td>LED6</td>
-  <td>BUFFER</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-</tr>
-<tr>
-  <td>LED7</td>
-  <td>XOR</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-</tr>
-</tbody>
-</table>
-<p><strong>결과 분석 질문</strong></p>
-<ol>
-<li>AND와 OR의 출력 조건은 어떻게 다른가?</li>
-<li>NAND와 AND, NOR와 OR의 관계를 설명하시오.</li>
-<li>XOR는 어떤 경우에 1이 되는가?</li>
-<li>입력을 그대로 내보내는 Buffer를 실제 회로에서 왜 사용하는가?</li>
-</ol>
-</section><section class="section" id="s05"><h2><span class="num">05</span>XOR과 XNOR 심화</h2><p>XOR은 <strong>두 입력이 다를 때</strong>, XNOR은 <strong>두 입력이 같을 때</strong> 1을 냅니다. 같은 식을 여러 방식으로 표현해 결과가 모두 일치하는지 확인합니다. 프로젝트명은 <code>xor_xnor_practice</code>입니다.</p>
-<p>파일명: <code>top.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module top(
-    input  wire [1:0] sw,
-    output wire [7:0] led
-);
-
-    // 기본 XOR / XNOR
-    assign led[0] = sw[0] ^ sw[1];
-    assign led[1] = ~(sw[0] ^ sw[1]);
-
-    // 곱의 합(SOP)으로 풀어 쓴 XOR / XNOR
-    assign led[2] = (sw[0] &amp; ~sw[1]) | (~sw[0] &amp; sw[1]);
-    assign led[3] = (sw[0] &amp; sw[1]) | (~sw[0] &amp; ~sw[1]);
-
-    // 비교 연산: 두 입력이 같으면 1
-    assign led[4] = (sw[0] == sw[1]);
-
-    // XOR 반전 = XNOR, XNOR 반전 = XOR
-    assign led[5] = ~led[0];
-    assign led[6] = ~led[1];
-
-    // Buffer
-    assign led[7] = sw[0];
-
-endmodule
-</code></pre></div>
-<p>XDC는 앞 실습과 같습니다.</p>
-<table>
-<thead>
-<tr>
-  <th>LED</th>
-  <th>의미</th>
-  <th style="text-align:center">A≠B일 때</th>
-  <th style="text-align:center">A=B일 때</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>LED0</td>
-  <td>XOR</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td>LED1</td>
-  <td>XNOR</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-</tr>
-<tr>
-  <td>LED2</td>
-  <td>XOR 분해식</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td>LED3</td>
-  <td>XNOR 분해식</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-</tr>
-<tr>
-  <td>LED4</td>
-  <td><code>==</code> 비교</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-</tr>
-<tr>
-  <td>LED5</td>
-  <td>XOR 반전</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-</tr>
-<tr>
-  <td>LED6</td>
-  <td>XNOR 반전</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-</tr>
-</tbody>
-</table>
-<p>XOR은 <strong>다름 검출기(Different Detector)</strong>, XNOR은 <strong>동등 검출기(Equality Detector)</strong> 입니다. CPU 비교 연산, 메모리 ECC, UART 패리티, ALU 덧셈기, 암호 회로의 데이터 비교에 쓰입니다. Verilog에서 XNOR은 <code>~^</code> 또는 <code>^~</code>로도 쓸 수 있습니다.</p>
-</section><section class="section" id="s06"><h2><span class="num">06</span>Verilog 연산자와 벡터</h2><p><strong>비트 연산자</strong> — 비트마다 따로 계산합니다.</p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>// a = 4'b1010, b = 4'b1100
-~a        // NOT  → 4'b0101
-a &amp; b     // AND  → 4'b1000
-a | b     // OR   → 4'b1110
-a ^ b     // XOR  → 4'b0110
-a ~^ b    // XNOR → 4'b1001
-</code></pre></div>
-<p><strong>축약 연산자(Reduction)</strong> — 벡터 전체를 1비트로 줄입니다.</p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>// a = 4'b1010
-&amp;a        // 모든 비트가 1이면 1       → 0
-|a        // 하나라도 1이면 1          → 1
-^a        // 1의 개수가 홀수이면 1      → 0
-~&amp;a       // NAND 축약                 → 1
-~|a       // NOR 축약                  → 0
-~^a       // XNOR 축약                 → 1
-</code></pre></div>
-<p><strong>비트 연산과 논리 연산 구분</strong></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>a &amp; b     // 비트별 AND  → 4'b1000 (벡터)
-a &amp;&amp; b    // 논리 AND    → 1'b1   (참/거짓)
-a | b     // 비트별 OR
-a || b    // 논리 OR
-~a        // 비트 반전
-!a        // 논리 부정
-</code></pre></div>
-<p><code>a &amp; b</code>는 <code>4'b1000</code>이지만, <code>a &amp;&amp; b</code>는 a와 b가 모두 0이 아니므로 <code>1'b1</code>입니다. 비트 연산은 마스크·레지스터 제어·ALU에, 논리 연산은 <code>if</code> 조건·FSM 조건 판단에 주로 씁니다.</p>
-<p><strong>벡터(Vector)</strong></p>
-<p>벡터는 여러 비트를 하나로 묶은 버스입니다. <code>[MSB:LSB]</code> 순서로 선언하며 왼쪽이 상위 비트입니다.</p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>wire   [7:0] w;     // 8비트 wire
-reg    [4:1] x;     // 4비트 reg (인덱스 4~1)
-output [3:0] a;     // 4비트 출력
-input  [2:0] vec;   // 3비트 입력, vec[2] vec[1] vec[0]으로 개별 접근
-
-reg [7:0] mem [255:0];  // 8비트 데이터 256개를 담는 메모리(Packed + Unpacked)
-</code></pre></div>
-<ul>
-<li>선언 방향과 사용 방향을 일치시킵니다(<code>wire [3:0] w;</code>이면 <code>w[3:0]</code>으로 사용).</li>
-<li>폭이 다른 벡터를 대입하면 남는 상위 비트는 0으로 채워집니다(<code>wire [7:0] w = 4비트 값</code>).</li>
-<li><code>default_nettype none</code>을 맨 위에 두면 선언하지 않은 이름이 wire로 자동 생성되지 않아 오타를 바로 찾을 수 있습니다.</li>
-</ul>
-</section><section class="section" id="s07"><h2><span class="num">07</span>벡터 활용 예제</h2><p><strong>16비트 입력을 상위·하위 바이트로 분리</strong></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`default_nettype none
-module top_module(
-    input  wire [15:0] in,
-    output wire [7:0]  out_hi,
-    output wire [7:0]  out_lo
-);
-    assign out_hi = in[15:8];   // 상위 8비트
-    assign out_lo = in[7:0];    // 하위 8비트
-endmodule
-</code></pre></div>
-<p><strong>바이트 순서 뒤집기(Byte Swap)</strong></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module top_module(
-    input  [31:0] in,
-    output [31:0] out
-);
-    assign out[31:24] = in[7:0];
-    assign out[23:16] = in[15:8];
-    assign out[15:8]  = in[23:16];
-    assign out[7:0]   = in[31:24];
-endmodule
-</code></pre></div>
-<p><strong>비트 순서 뒤집기(Bit Reverse)</strong> — 결합 연산자 <code>{ }</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module top_module(
-    input  [7:0] in,
-    output [7:0] out
-);
-    // in[0]이 out의 MSB가 되도록 나열
-    assign out = {in[0], in[1], in[2], in[3], in[4], in[5], in[6], in[7]};
-endmodule
-</code></pre></div>
-<p><strong>반복 연산자와 부호 확장(Sign Extension)</strong> — <code>{n{vector}}</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module top_module(
-    input  [7:0]  in,
-    output [31:0] out
-);
-    // 부호 비트 in[7]을 24번 반복해 32비트로 확장
-    assign out = {{24{in[7]}}, in};
-endmodule
-</code></pre></div>
-<p><code>8'b0000_0101</code>(+5)은 앞이 0으로, <code>8'b1111_1101</code>(−3)은 앞이 1로 채워져 값의 부호가 유지됩니다. CPU ALU에서 자주 쓰는 기법입니다.</p>
-<p><strong>축약 연산자 예제</strong></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module top_module(
-    input  [3:0] in,
-    output       out_and,
-    output       out_or,
-    output       out_xor
-);
-    assign out_and = &amp;in;   // 4입력 AND
-    assign out_or  = |in;   // 4입력 OR
-    assign out_xor = ^in;   // 4입력 XOR (패리티)
-endmodule
-</code></pre></div>
-<p><strong>중간 신호 wire 선언</strong></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`default_nettype none
-module top_module(
-    input  wire a, b, c, d,
-    output wire out,
-    output wire out_n
-);
-    wire and1, and2;          // 내부 연결선
-
-    assign and1  = a &amp; b;
-    assign and2  = c &amp; d;
-    assign out   = and1 | and2;
-    assign out_n = ~out;
-endmodule
-</code></pre></div>
-<p>wire는 하나의 드라이버(구동원)만 가질 수 있지만, 여러 게이트의 입력으로는 얼마든지 연결할 수 있습니다.</p>
-</section><section class="section" id="s08"><h2><span class="num">08</span>과제 74HC51 AOI 게이트</h2><p>74 시리즈 IC의 데이터시트를 찾아 내부 논리를 Verilog로 옮기는 과제입니다. 74HC51은 <strong>AND-OR-INVERT(AOI)</strong> 게이트 두 개를 담은 IC입니다(데이터시트 검색: <a href="https://www.alldatasheet.co.kr/">alldatasheet.co.kr</a>).</p>
-<table>
-<thead>
-<tr>
-  <th>출력</th>
-  <th>논리식</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>1Y</td>
-  <td>(1A·1B·1C + 1D·1E·1F)'</td>
-</tr>
-<tr>
-  <td>2Y</td>
-  <td>(2A·2B + 2C·2D)'</td>
-</tr>
-</tbody>
-</table>
-<table>
-<thead>
-<tr>
-  <th>74HC51 신호</th>
-  <th>Basys3</th>
-  <th>핀</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>1A, 1B, 1C</td>
-  <td>SW0, SW1, SW2</td>
-  <td>V17, V16, W16</td>
-</tr>
-<tr>
-  <td>1D, 1E, 1F</td>
-  <td>SW3, SW4, SW5</td>
-  <td>W17, W15, V15</td>
-</tr>
-<tr>
-  <td>2A, 2B</td>
-  <td>SW6, SW7</td>
-  <td>W14, W13</td>
-</tr>
-<tr>
-  <td>2C, 2D</td>
-  <td>SW8, SW9</td>
-  <td>V2, T3</td>
-</tr>
-<tr>
-  <td>1Y</td>
-  <td>LED0</td>
-  <td>U16</td>
-</tr>
-<tr>
-  <td>2Y</td>
-  <td>LED1</td>
-  <td>E19</td>
-</tr>
-</tbody>
-</table>
-<p><strong>제작 순서:</strong> Vivado 프로젝트 <code>hd74hc51</code> 생성(RTL, Basys3) → 디자인 소스 <code>hd74hc51.v</code> → Verilog 작성 → XDC 핀 설정 → (테스트벤치·시뮬레이션은 이번에 생략) → Synthesis → Implementation → Bitstream → 다운로드 → 동작 확인</p>
-<p>파일명: <code>hd74hc51.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
-
-module hd74hc51(
-    input  a1, b1, c1,
-    input  d1, e1, f1,
-    input  a2, b2,
-    input  c2, d2,
-    output y1, y2
-);
-
-    wire and1_1, and1_2;
-    wire and2_1, and2_2;
-
-    assign and1_1 = a1 &amp; b1 &amp; c1;          // 3입력 AND
-    assign and1_2 = d1 &amp; e1 &amp; f1;          // 3입력 AND
-    assign y1     = ~(and1_1 | and1_2);    // OR 후 NOT
-
-    assign and2_1 = a2 &amp; b2;               // 2입력 AND
-    assign and2_2 = c2 &amp; d2;               // 2입력 AND
-    assign y2     = ~(and2_1 | and2_2);    // OR 후 NOT
-
-endmodule
-</code></pre></div>
-<p>파일명: <code>Basys3_Master.xdc</code> (사용하는 줄만)</p>
-<div class="codeblock"><div class="codebar"><span>tcl</span></div><pre><code>set_property -dict { PACKAGE_PIN V17 IOSTANDARD LVCMOS33 } [get_ports a1]
-set_property -dict { PACKAGE_PIN V16 IOSTANDARD LVCMOS33 } [get_ports b1]
-set_property -dict { PACKAGE_PIN W16 IOSTANDARD LVCMOS33 } [get_ports c1]
-set_property -dict { PACKAGE_PIN W17 IOSTANDARD LVCMOS33 } [get_ports d1]
-set_property -dict { PACKAGE_PIN W15 IOSTANDARD LVCMOS33 } [get_ports e1]
-set_property -dict { PACKAGE_PIN V15 IOSTANDARD LVCMOS33 } [get_ports f1]
-set_property -dict { PACKAGE_PIN W14 IOSTANDARD LVCMOS33 } [get_ports a2]
-set_property -dict { PACKAGE_PIN W13 IOSTANDARD LVCMOS33 } [get_ports b2]
-set_property -dict { PACKAGE_PIN V2  IOSTANDARD LVCMOS33 } [get_ports c2]
-set_property -dict { PACKAGE_PIN T3  IOSTANDARD LVCMOS33 } [get_ports d2]
-set_property -dict { PACKAGE_PIN U16 IOSTANDARD LVCMOS33 } [get_ports y1]
-set_property -dict { PACKAGE_PIN E19 IOSTANDARD LVCMOS33 } [get_ports y2]
-</code></pre></div>
-<p>Add Constraints 단계에서는 <strong>Copy constraints files into project</strong>를 반드시 체크해 원본 Master XDC를 보존합니다. RTL Analysis의 Schematic에서 3입력 AND 두 개 → OR → NOT 구조가 만들어졌는지 확인합니다.</p>
-<p>예상 동작: SW0~SW2가 모두 ON이거나 SW3~SW5가 모두 ON이면 LED0이 <strong>꺼집니다</strong>. 평소(모두 OFF)에는 두 LED가 모두 켜져 있습니다.</p>
-<p><strong>자율 과제</strong></p>
-<table>
-<thead>
-<tr>
-  <th>과제</th>
-  <th>IC</th>
+  <th>항목</th>
   <th>내용</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-  <td>#1</td>
-  <td>74HC86</td>
-  <td>2입력 XOR 게이트 4개(Quad XOR), <code>nY = nA ⊕ nB</code></td>
+  <td>보드</td>
+  <td>Digilent Basys3 (AMD Artix-7 <code>XC7A35T-1CPG236C</code>)</td>
 </tr>
 <tr>
-  <td>#2</td>
-  <td>74HC58</td>
-  <td>AND-OR 게이트 2개, <code>1Y = 1A·1B·1C + 1D·1E·1F</code>, <code>2Y = 2A·2B + 2C·2D</code></td>
+  <td>설계 도구</td>
+  <td>Vivado 2024.2 ML Standard</td>
+</tr>
+<tr>
+  <td>편집기</td>
+  <td>VS Code</td>
+</tr>
+<tr>
+  <td>운영체제</td>
+  <td>Ubuntu 24.04</td>
+</tr>
+<tr>
+  <td>완료 기준</td>
+  <td><code>djtgcfg enum</code>에서 Basys3 인식, SW0으로 LED0 ON/OFF</td>
 </tr>
 </tbody>
 </table>
-<p>데이터시트에서 핀 배치와 기능표를 직접 확인하고, 같은 제작 순서로 구현합니다.</p>
-</section><section class="section" id="s09"><h2><span class="num">09</span>74 시리즈 기반 RTL 설계 규칙</h2><p>Verilog는 프로그램 언어가 아니라 <strong>하드웨어 기술 언어(HDL)</strong> 입니다. 코드를 실행하는 것이 아니라 FPGA 안에 실제 회로를 만든다고 생각해야 합니다. 이 과정은 74 시리즈 IC 번호를 모듈 이름에 붙여 실제 부품과 RTL을 연결합니다.</p>
-<table>
-<thead>
-<tr>
-  <th>접두어</th>
-  <th>분류</th>
-  <th>역할</th>
-  <th>출력 결정</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><code>g_</code></td>
-  <td>Gate</td>
-  <td>논리 연산</td>
-  <td>현재 입력</td>
-</tr>
-<tr>
-  <td><code>c_</code></td>
-  <td>Combinational</td>
-  <td>선택·계산</td>
-  <td>현재 입력 (기억 없음)</td>
-</tr>
-<tr>
-  <td><code>s_</code></td>
-  <td>Sequential</td>
-  <td>기억·상태</td>
-  <td>현재 입력 + 이전 상태</td>
-</tr>
-<tr>
-  <td><code>p_</code></td>
-  <td>Project / Peripheral</td>
-  <td>시스템 기능</td>
-  <td>조합 + 순차</td>
-</tr>
-</tbody>
-</table>
-<table>
-<thead>
-<tr>
-  <th>계열</th>
-  <th>모듈 예</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>Gate</td>
-  <td><code>g_not_7404</code>, <code>g_buffer_7407</code>, <code>g_nand_7400</code>, <code>g_nor_7402</code>, <code>g_and_7408</code>, <code>g_or_7432</code>, <code>g_xor_7486</code></td>
-</tr>
-<tr>
-  <td>Combinational</td>
-  <td><code>c_mux2_74157</code>, <code>c_mux8_74151</code>, <code>c_decoder2_74139</code>, <code>c_decoder3_74138</code>, <code>c_decoder4_74154</code>, <code>c_encoder8_74148</code>, <code>c_comparator_7485</code>, <code>c_adder4_74283</code>, <code>c_alu_74181</code>, <code>c_sevenseg_7447</code></td>
-</tr>
-<tr>
-  <td>Sequential</td>
-  <td><code>s_dff_7474</code>, <code>s_latch_7475</code>, <code>s_register_74173</code>, <code>s_counter_74161</code>, <code>s_counter_7490</code>, <code>s_shift_74164</code>, <code>s_shift_74194</code></td>
-</tr>
-<tr>
-  <td>Project</td>
-  <td><code>p_debounce</code>, <code>p_clock_divider</code>, <code>p_edge_detector</code>, <code>p_uart_tx</code>, <code>p_uart_rx</code>, <code>p_baud_gen</code>, <code>p_sevenseg_driver</code>, <code>p_fsm_controller</code></td>
-</tr>
-</tbody>
-</table>
-<p><strong>권장 라이브러리 구조</strong></p>
-<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>rtl_lib/
-├── g_gate/
-├── c_comb/
-├── s_seq/
-└── p_project/
-</code></pre></div>
-<p><strong>코딩 스타일</strong></p>
+<p><strong>전체 흐름</strong></p>
 <ol>
-<li>파일명과 모듈명을 같게 (<code>g_and_7408.v</code> ↔ <code>module g_and_7408</code>)</li>
-<li>포트는 줄 맞춰 정렬</li>
-<li><code>assign</code> 문은 간결하게</li>
-<li>주석은 핵심만 (<code>// AND Gate</code>)</li>
-<li>조합논리(현재 입력만)와 순차논리(클록 + 이전 상태)를 섞지 않기</li>
+<li>시스템 업데이트와 필수 패키지 설치</li>
+<li>Vivado 설치와 환경 변수 등록</li>
+<li>케이블 드라이버·Digilent Adept Runtime 설치, 사용자 권한 설정</li>
+<li>작업 폴더 준비와 VS Code 연동</li>
+<li>Basys3 하드웨어와 XDC(핀 제약 파일) 이해</li>
+<li>SW0 → LED0 첫 실습</li>
 </ol>
-<p>디지털 시스템은 <strong>연산(Gate·ALU) · 선택(MUX·Decoder) · 기억(Flip-Flop·Register) · 제어(FSM)</strong> 네 기능으로 구성됩니다.</p>
-<p><strong>학습 테크트리</strong></p>
-<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>[LEVEL 1] Gate           → 논리 연산 이해
-[LEVEL 2] Combinational  → 선택·계산 이해 (MUX, Decoder, Adder, ALU)
-[LEVEL 3] Sequential     → 기억·상태 이해 (DFF, Register, Counter, Shift)
-[LEVEL 4] FPGA Utility   → 디바운스, 분주기, 에지 검출, 7세그먼트 드라이버
-[LEVEL 5] Communication  → Baud 생성, UART 송수신
-[LEVEL 6] FSM            → 신호등, 자판기, UART 제어
-[LEVEL 7] System Design  → ALU, Register File, Simple CPU, Bus
-[LEVEL 8] Advanced FPGA  → AXI, SPI, I2C, VGA, HDMI, RISC-V, Zynq, Edge AI
+<blockquote>
+<p><strong>준비물:</strong> Basys3 보드와 <strong>데이터 통신이 되는</strong> Micro USB 케이블. 충전 전용 케이블로는 보드가 인식되지 않습니다.</p>
+</blockquote>
+</section><section class="section" id="s01"><h2><span class="num">01</span>Vivado 설치 준비</h2><p>터미널은 <code>Ctrl + Alt + T</code>로 엽니다. 먼저 시스템을 최신 상태로 맞춥니다.</p>
+<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># 패키지 목록 갱신 → 설치된 패키지 업그레이드
+sudo apt update
+sudo apt upgrade -y
 </code></pre></div>
-<p>작은 회로를 조립해 큰 시스템을 만드는 과정입니다.</p>
-</section><section class="section" id="s10"><h2><span class="num">10</span>게이트 모듈 구조화 설계</h2><p>게이트 일곱 개를 각각 독립 모듈로 만들고, 최상위 모듈 <code>gate_top</code>에서 <strong>인스턴스(Instance)</strong> 로 불러 연결합니다. 같은 입력 SW0(A)·SW1(B)을 모든 게이트에 넣어 종류별 출력 차이를 한눈에 비교합니다.</p>
+<p>Vivado 화면 표시, USB 장치 인식, 드라이버 빌드에 필요한 라이브러리를 설치합니다.</p>
+<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># Vivado GUI·USB·드라이버 빌드에 필요한 라이브러리 일괄 설치
+sudo apt install -y build-essential git make gcc g++ libncurses6 libtinfo6 \
+  libusb-1.0-0 libgtk-3-0 libx11-6 libxext6 libxrender1 libxtst6 libxi6 \
+  libxft2 net-tools
+</code></pre></div>
 <table>
 <thead>
 <tr>
-  <th>LED</th>
-  <th>연결 모듈</th>
+  <th>패키지</th>
+  <th>용도</th>
+  <th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>build-essential</code>, <code>gcc</code>, <code>g++</code></td>
+  <td>컴파일 기본 도구</td>
+  <td>드라이버·도구 빌드</td>
+</tr>
+<tr>
+  <td><code>git</code>, <code>make</code></td>
+  <td>소스 관리·빌드 자동화</td>
+  <td>선택</td>
+</tr>
+<tr>
+  <td><code>libncurses6</code>, <code>libtinfo6</code></td>
+  <td>터미널 화면·정보</td>
+  <td><code>libncurses6</code>는 선택</td>
+</tr>
+<tr>
+  <td><code>libusb-1.0-0</code></td>
+  <td>USB 통신</td>
+  <td>FPGA 보드 인식</td>
+</tr>
+<tr>
+  <td><code>libgtk-3-0</code>, <code>libx11-6</code>, <code>libxext6</code>, <code>libxrender1</code></td>
+  <td>GUI 구성·그래픽 출력</td>
+  <td>Vivado 화면</td>
+</tr>
+<tr>
+  <td><code>libxtst6</code>, <code>libxi6</code></td>
+  <td>키보드·마우스 입력 처리</td>
+  <td></td>
+</tr>
+<tr>
+  <td><code>libxft2</code></td>
+  <td>글꼴 표시</td>
+  <td></td>
+</tr>
+<tr>
+  <td><code>net-tools</code></td>
+  <td><code>ifconfig</code> 등 네트워크 도구</td>
+  <td>선택</td>
+</tr>
+</tbody>
+</table>
+<p><strong>설치 파일 내려받기</strong></p>
+<p>AMD 공식 다운로드 페이지에서 회원 가입 후 Linux용 통합 설치 파일을 <code>~/Downloads</code>에 내려받습니다. 설치 중에도 로그인이 필요하므로 계정은 반드시 만들어 둡니다.</p>
+<ul>
+<li>다운로드: <a href="https://www.xilinx.com/support/download.html">AMD Vivado Design Tools</a></li>
+<li>파일 형태: <code>FPGAs_AdaptiveSoCs_Unified_2024.2_*.bin</code></li>
+</ul>
+</section><section class="section" id="s02"><h2><span class="num">02</span>Vivado 설치와 환경 설정</h2><div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># 설치 파일 위치로 이동 → 실행 권한 부여 → 설치 프로그램 실행
+cd ~/Downloads
+chmod +x FPGAs_AdaptiveSoCs_Unified_2024.2_*.bin
+sudo ./FPGAs_AdaptiveSoCs_Unified_2024.2_*.bin
+</code></pre></div>
+<p><img src="images/ch01/vivado_installer_welcome.png" alt="AMD Unified Installer 2024.2 Welcome 화면" />
+<em>그림 1-1. 설치 프로그램 시작 화면 (AMD Unified Installer 2024.2)</em></p>
+<p>설치 화면에서는 Basys3에 필요한 항목만 고릅니다. 설치 용량과 시간을 크게 줄일 수 있습니다.</p>
+<table>
+<thead>
+<tr>
+  <th>항목</th>
+  <th>선택</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Product</td>
+  <td>Vivado</td>
+</tr>
+<tr>
+  <td>Edition</td>
+  <td>ML Standard</td>
+</tr>
+<tr>
+  <td>Device</td>
+  <td><strong>7 Series</strong> (Basys3 → Artix-7 → 7 Series)</td>
+</tr>
+<tr>
+  <td>설치 경로</td>
+  <td><code>/tools/Xilinx</code></td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+  <th>선택하지 않는 항목</th>
+  <th>이유</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Zynq / MPSoC</td>
+  <td>Basys3 디바이스가 아님</td>
+</tr>
+<tr>
+  <td>Vitis</td>
+  <td>소프트웨어 개발용</td>
+</tr>
+<tr>
+  <td>HLS</td>
+  <td>C 기반 설계용</td>
+</tr>
+<tr>
+  <td>UltraScale / Versal</td>
+  <td>고급 FPGA용</td>
+</tr>
+<tr>
+  <td>Model Composer</td>
+  <td>MATLAB 연동용</td>
+</tr>
+</tbody>
+</table>
+<p>나중에 개별 학습이 필요하면 별도 PC에 추가로 설치하면 됩니다.</p>
+<p><strong>환경 변수 등록</strong></p>
+<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># 현재 터미널에만 적용
+source /tools/Xilinx/Vivado/2024.2/settings64.sh
+
+# 새 터미널에서도 자동 적용되도록 ~/.bashrc 끝에 등록
+echo 'source /tools/Xilinx/Vivado/2024.2/settings64.sh' &gt;&gt; ~/.bashrc
+
+# 실행 확인
+vivado
+</code></pre></div>
+<p><code>vivado: command not found</code>가 나오면 <code>settings64.sh</code>가 적용되지 않은 것입니다. 설치 경로가 <code>/opt/Xilinx</code>처럼 다르면 경로를 맞춰 다시 등록합니다.</p>
+<p><img src="images/ch01/vivado_start_page.png" alt="Vivado 2024.2 시작 화면" />
+<em>그림 1-2. 설치가 끝난 뒤 <code>vivado</code>로 실행한 시작 화면</em></p>
+</section><section class="section" id="s03"><h2><span class="num">03</span>드라이버와 보드 인식</h2><p>PC와 Basys3는 두 단계의 소프트웨어를 거쳐 연결됩니다.</p>
+<p><img src="images/ch01/svg_driver_chain.svg" alt="Vivado에서 Adept Runtime, USB 케이블을 거쳐 Basys3로 이어지는 연결 구조" />
+<em>그림 1-3. PC와 Basys3 연결 구조</em></p>
+<p><strong>① Vivado 케이블 드라이버</strong></p>
+<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># Vivado에 포함된 케이블 드라이버 설치
+cd /tools/Xilinx/Vivado/2024.2/data/xicom/cable_drivers/lin64/install_script/install_drivers
+sudo ./install_drivers
+</code></pre></div>
+<p><strong>② Digilent Adept Runtime / Utilities</strong></p>
+<p>Vivado에는 Digilent 보드용 USB 드라이버가 들어 있지 않습니다. Adept Runtime이 없으면 Hardware Manager의 <strong>Open Target</strong>이 동작하지 않고 <code>djtgcfg</code> 명령도 사용할 수 없습니다.</p>
+<ul>
+<li>Runtime: <a href="https://digilent.com/reference/software/adept/runtime-previous-versions">Digilent Adept Runtime</a> — <code>digilent.adept.runtime_*.deb</code></li>
+<li>Utilities: <a href="https://digilent.com/reference/software/adept/utilities-previous-versions">Digilent Adept Utilities</a> — <code>digilent.adept.utilities_*.deb</code></li>
+</ul>
+<p><img src="images/ch01/adept_runtime_downloads.png" alt="Digilent Adept 2 Runtime 다운로드 페이지" />
+<em>그림 1-4. Adept 2 Runtime 다운로드 페이지 — Linux는 <code>.deb</code> 선택 (출처: Digilent Reference 웹사이트)</em></p>
+<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># 내려받은 .deb 패키지 설치 → 부족한 의존성 자동 보완
+cd ~/Downloads
+sudo dpkg -i digilent.adept.runtime_*.deb
+sudo apt -f install
+
+# 확인용 유틸리티(djtgcfg 포함) 설치
+sudo dpkg -i digilent.adept.utilities_*.deb
+sudo apt -f install
+
+# 설치 확인: 경로가 출력되면 정상
+which djtgcfg
+</code></pre></div>
+<table>
+<thead>
+<tr>
+  <th>명령 요소</th>
+  <th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>sudo</code></td>
+  <td>관리자 권한으로 실행</td>
+</tr>
+<tr>
+  <td><code>dpkg -i</code></td>
+  <td>Debian 패키지 설치(<code>-i</code> = install)</td>
+</tr>
+<tr>
+  <td><code>*.deb</code></td>
+  <td>이름이 맞는 파일 자동 선택</td>
+</tr>
+<tr>
+  <td><code>apt -f install</code></td>
+  <td>깨진 의존성 수정(<code>-f</code> = fix broken), <code>dpkg</code> 오류 뒤 실행</td>
+</tr>
+</tbody>
+</table>
+<p>Adept 구성 요소는 다음과 같이 나뉩니다.</p>
+<table>
+<thead>
+<tr>
+  <th>구성 요소</th>
+  <th>역할</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>Runtime</strong></td>
+  <td>USB 드라이버, 보드 인식 담당 — 가장 중요</td>
+</tr>
+<tr>
+  <td>Utilities</td>
+  <td>데이터 전송·테스트·디버깅 도구(<code>djtgcfg</code>)</td>
+</tr>
+<tr>
+  <td>SDK</td>
+  <td>C/C++로 보드를 제어하는 API</td>
+</tr>
+<tr>
+  <td>System</td>
+  <td>구버전 GUI 도구, 현재 지원 종료</td>
+</tr>
+</tbody>
+</table>
+<p><strong>③ 사용자 권한 설정</strong></p>
+<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># 시리얼(dialout)·USB(plugdev) 장치 접근 권한 부여 후 재부팅
+sudo usermod -aG dialout $USER
+sudo usermod -aG plugdev $USER
+sudo reboot
+</code></pre></div>
+<p><strong>④ 최종 인식 확인</strong></p>
+<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># USB 장치 목록 → Digilent 보드 검색
+lsusb
+djtgcfg enum
+</code></pre></div>
+<p>예상 출력:</p>
+<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>Found 1 device(s)
+Device: Basys3
+</code></pre></div>
+<table>
+<thead>
+<tr>
+  <th>증상</th>
+  <th>원인</th>
+  <th>해결</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>command not found</code></td>
+  <td>Adept Runtime·Utilities 미설치</td>
+  <td>② 다시 수행</td>
+</tr>
+<tr>
+  <td><code>Found 0 device(s)</code></td>
+  <td>USB 연결 문제</td>
+  <td>통신용 케이블·다른 포트·보드 전원 확인</td>
+</tr>
+<tr>
+  <td><code>Permission denied</code></td>
+  <td>권한 부족</td>
+  <td>③ 수행 후 재부팅, 급하면 <code>sudo</code></td>
+</tr>
+</tbody>
+</table>
+<p>문제가 생기면 <code>lsusb</code> → <code>djtgcfg enum</code> → <code>groups</code> → <code>which vivado</code> → 오류 메시지 순으로 확인합니다. <strong>보드가 보이지 않으면 드라이버부터 의심</strong>하는 습관이 가장 빠른 해결책입니다.</p>
+</section><section class="section" id="s04"><h2><span class="num">04</span>작업 폴더와 VS Code</h2><p>Vivado 프로젝트에는 소스, 시뮬레이션, IP, 합성·구현 결과, 로그가 모두 쌓여 프로젝트 하나가 수 GB까지 커질 수 있습니다. 바탕화면·다운로드·문서 폴더나 USB 메모리 대신 <strong>실습 전용 폴더</strong>를 만듭니다.</p>
+<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># 실습 전용 폴더 생성 → 이동 → 현재 위치 확인
+mkdir ~/viva_work
+cd ~/viva_work
+pwd
+</code></pre></div>
+<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>viva_work/
+├── led_test/
+├── and_gate/
+├── uart_test/
+└── counter_fnd/
+</code></pre></div>
+<p><strong>VS Code 설치와 실행</strong></p>
+<p>VS Code는 <code>apt</code> 저장소를 등록해 설치하면 이후 시스템 업데이트로 함께 관리됩니다.</p>
+<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># 패키지 목록 갱신 → 저장소 등록 도구 준비
+sudo apt update
+sudo apt install -y wget gpg
+# (Microsoft 저장소 등록 후) VS Code 설치 → 버전 확인
+sudo apt install -y code
+code --version
+</code></pre></div>
+<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># 프로젝트 폴더를 만들고 VS Code로 열기
+mkdir ~/fpga_lab
+cd ~/fpga_lab
+code .
+</code></pre></div>
+<table>
+<thead>
+<tr>
+  <th>실행 방식</th>
+  <th>명령</th>
+  <th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>현재 폴더 열기</td>
+  <td><code>code .</code></td>
+  <td>가장 많이 사용</td>
+</tr>
+<tr>
+  <td>특정 폴더 열기</td>
+  <td><code>code ~/fpga_project</code></td>
+  <td>프로젝트 폴더 직접 열기</td>
+</tr>
+<tr>
+  <td>특정 파일 열기</td>
+  <td><code>code top.v</code></td>
+  <td>파일만 열기</td>
+</tr>
+</tbody>
+</table>
+<p><strong>권장 설정과 확장</strong></p>
+<table>
+<thead>
+<tr>
+  <th>설정</th>
+  <th>권장값</th>
+  <th>이유</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Font Size</td>
+  <td>15~18</td>
+  <td>화면 가독성</td>
+</tr>
+<tr>
+  <td>Auto Save</td>
+  <td><code>afterDelay</code></td>
+  <td>저장 누락 방지</td>
+</tr>
+<tr>
+  <td>Tab Size</td>
+  <td>4</td>
+  <td>Verilog 가독성</td>
+</tr>
+<tr>
+  <td>Encoding</td>
+  <td>UTF-8</td>
+  <td>한글 주석 깨짐 방지</td>
+</tr>
+<tr>
+  <td>Word Wrap</td>
+  <td>ON</td>
+  <td>긴 코드 보기</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+  <th>확장</th>
+  <th>용도</th>
+  <th>권장</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Verilog HDL / Verilog-HDL/SystemVerilog</td>
+  <td>문법 강조·편집 지원</td>
+  <td>필수</td>
+</tr>
+<tr>
+  <td>Tcl</td>
+  <td>Vivado Tcl 스크립트 편집</td>
+  <td>추천</td>
+</tr>
+<tr>
+  <td>GitLens</td>
+  <td>Git 이력 확인</td>
+  <td>추천</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+  <th>단축키</th>
   <th>기능</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-  <td>LED0</td>
-  <td><code>g_not_7404</code></td>
-  <td>NOT (A)</td>
+  <td><code>Ctrl + Shift + P</code></td>
+  <td>명령 팔레트</td>
 </tr>
 <tr>
-  <td>LED1</td>
-  <td><code>g_buffer_7407</code></td>
-  <td>BUFFER (A)</td>
+  <td><code>Ctrl + P</code></td>
+  <td>파일 빠르게 열기</td>
 </tr>
 <tr>
-  <td>LED2</td>
-  <td><code>g_and_7408</code></td>
-  <td>AND</td>
+  <td><code>Ctrl + ` </code></td>
+  <td>하단 터미널</td>
 </tr>
 <tr>
-  <td>LED3</td>
-  <td><code>g_or_7432</code></td>
-  <td>OR</td>
+  <td><code>Ctrl + Shift + F</code></td>
+  <td>프로젝트 전체 검색</td>
 </tr>
 <tr>
-  <td>LED4</td>
-  <td><code>g_nand_7400</code></td>
-  <td>NAND</td>
+  <td><code>Ctrl + /</code></td>
+  <td>주석 처리</td>
 </tr>
 <tr>
-  <td>LED5</td>
-  <td><code>g_nor_7402</code></td>
-  <td>NOR</td>
-</tr>
-<tr>
-  <td>LED6</td>
-  <td><code>g_xor_7486</code></td>
-  <td>XOR</td>
+  <td><code>Alt + ↑ / ↓</code></td>
+  <td>줄 이동</td>
 </tr>
 </tbody>
 </table>
-<p>필요한 파일: <code>g_not_7404.v</code>, <code>g_buffer_7407.v</code>, <code>g_and_7408.v</code>, <code>g_or_7432.v</code>, <code>g_nand_7400.v</code>, <code>g_nor_7402.v</code>, <code>g_xor_7486.v</code>, <code>gate_top.v</code>, <code>Basys3.xdc</code></p>
-<p>파일명: <code>g_not_7404.v</code> / <code>g_buffer_7407.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module g_not_7404(
-    input  a,
-    output y
-);
-    // NOT Gate
-    assign y = ~a;
-endmodule
-
-module g_buffer_7407(
-    input  a,
-    output y
-);
-    // BUFFER
-    assign y = a;
-endmodule
+<p><strong>권장 프로젝트 구조</strong></p>
+<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>fpga_lab/
+├── rtl/            # 하드웨어 설계 코드 (top.v)
+├── tb/             # 테스트벤치 (top_tb.v)
+├── constraints/    # 핀·클록 제약 (basys3.xdc)
+├── sim/            # 시뮬레이션 결과
+├── docs/           # 설명 자료
+└── vivado_project/ # Vivado 프로젝트 파일
 </code></pre></div>
-<p>파일명: <code>g_and_7408.v</code> / <code>g_or_7432.v</code> / <code>g_nand_7400.v</code> / <code>g_nor_7402.v</code> / <code>g_xor_7486.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module g_and_7408(
-    input  a,
-    input  b,
-    output y
-);
-    // AND Gate
-    assign y = a &amp; b;
-endmodule
-
-module g_or_7432(
-    input  a,
-    input  b,
-    output y
-);
-    // OR Gate
-    assign y = a | b;
-endmodule
-
-module g_nand_7400(
-    input  a,
-    input  b,
-    output y
-);
-    // NAND Gate
-    assign y = ~(a &amp; b);
-endmodule
-
-module g_nor_7402(
-    input  a,
-    input  b,
-    output y
-);
-    // NOR Gate
-    assign y = ~(a | b);
-endmodule
-
-module g_xor_7486(
-    input  a,
-    input  b,
-    output y
-);
-    // XOR Gate
-    assign y = a ^ b;
-endmodule
-</code></pre></div>
-<p>실제 프로젝트에서는 모듈마다 같은 이름의 파일로 나누어 저장합니다.</p>
-<p>파일명: <code>gate_top.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module gate_top(
-    input  [1:0] sw,
-    output [6:0] led
-);
-
-    // NOT Gate
-    g_not_7404 u_not_7404(
-        .a(sw[0]),
-        .y(led[0])
-    );
-
-    // BUFFER
-    g_buffer_7407 u_buffer_7407(
-        .a(sw[0]),
-        .y(led[1])
-    );
-
-    // AND Gate
-    g_and_7408 u_and_7408(
-        .a(sw[0]),
-        .b(sw[1]),
-        .y(led[2])
-    );
-
-    // OR Gate
-    g_or_7432 u_or_7432(
-        .a(sw[0]),
-        .b(sw[1]),
-        .y(led[3])
-    );
-
-    // NAND Gate
-    g_nand_7400 u_nand_7400(
-        .a(sw[0]),
-        .b(sw[1]),
-        .y(led[4])
-    );
-
-    // NOR Gate
-    g_nor_7402 u_nor_7402(
-        .a(sw[0]),
-        .b(sw[1]),
-        .y(led[5])
-    );
-
-    // XOR Gate
-    g_xor_7486 u_xor_7486(
-        .a(sw[0]),
-        .b(sw[1]),
-        .y(led[6])
-    );
-
-endmodule
-</code></pre></div>
-<p><strong>Module과 Instance</strong></p>
-<table>
+<p>경로와 파일 이름에는 <strong>공백과 한글을 쓰지 않습니다</strong>. 파일명은 모듈명과 같게(<code>led_shift_fsm.v</code> ↔ <code>module led_shift_fsm</code>), 테스트벤치는 <code>_tb</code>를 붙입니다.</p>
+</section><section class="section" id="s05"><h2><span class="num">05</span>VS Code와 Vivado 역할 분리</h2><table>
 <thead>
 <tr>
-  <th>개념</th>
-  <th>의미</th>
+  <th>작업</th>
+  <th style="text-align:center">VS Code</th>
+  <th style="text-align:center">Vivado</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-  <td>Module</td>
-  <td>회로를 <strong>정의</strong>하는 블록</td>
+  <td>Verilog·XDC·Tcl 작성, 대량 수정·검색</td>
+  <td style="text-align:center">✅</td>
+  <td style="text-align:center">가능하지만 불편</td>
 </tr>
 <tr>
-  <td>Instance</td>
-  <td>정의된 모듈을 FPGA 내부에 <strong>실제로 생성</strong>한 것</td>
+  <td>시뮬레이션</td>
+  <td style="text-align:center">제한적</td>
+  <td style="text-align:center">✅</td>
 </tr>
 <tr>
-  <td>Instantiation</td>
-  <td>모듈을 배치·연결하는 과정</td>
+  <td>RTL Analysis · Synthesis · Implementation</td>
+  <td style="text-align:center">❌</td>
+  <td style="text-align:center">✅</td>
+</tr>
+<tr>
+  <td>Bitstream 생성 · FPGA 다운로드</td>
+  <td style="text-align:center">❌</td>
+  <td style="text-align:center">✅</td>
+</tr>
+</tbody>
+</table>
+<p><strong>권장 작업 순서</strong></p>
+<ol>
+<li>터미널에서 프로젝트 폴더 생성</li>
+<li>VS Code에서 Verilog(<code>rtl/</code>)·XDC(<code>constraints/</code>) 작성</li>
+<li>Vivado에서 프로젝트 생성 → <strong>Add Sources</strong>로 RTL·XDC 등록</li>
+<li>Run Simulation → Run Synthesis → Open Elaborated Design</li>
+<li>Run Implementation → Generate Bitstream → Open Hardware Manager</li>
+</ol>
+<p><img src="images/ch01/svg_design_flow.svg" alt="Verilog 작성부터 Program Device까지의 Vivado 설계 흐름" />
+<em>그림 1-5. Vivado FPGA 설계 흐름</em></p>
+<table>
+<thead>
+<tr>
+  <th>상황</th>
+  <th>Vivado 반영</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>등록된 파일을 VS Code에서 수정·저장</td>
+  <td>자동 반영</td>
+</tr>
+<tr>
+  <td>VS Code에서 새 파일만 생성</td>
+  <td>반영 안 됨 → Add Sources 필요</td>
+</tr>
+<tr>
+  <td>파일 이름 변경·이동</td>
+  <td>연결이 끊길 수 있음 → Sources에서 다시 연결</td>
+</tr>
+<tr>
+  <td>XDC 수정</td>
+  <td>저장 후 Synthesis·Implementation 재실행</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>기억할 점:</strong> VS Code는 코드를 편하게 쓰는 도구, Vivado는 실제로 FPGA 회로를 만드는 도구입니다. <strong>저장해야 Vivado가 읽고, 새 파일은 Vivado에 알려 줘야 합니다.</strong></p>
+</blockquote>
+</section><section class="section" id="s06"><h2><span class="num">06</span>Basys3 하드웨어 개요</h2><p>Basys3는 AMD Artix-7 <code>XC7A35T-1CPG236C</code>를 탑재한 입문용 디지털 회로 개발 보드입니다. 회로도와 상세 사양은 <a href="https://digilent.com/reference/programmable-logic/basys-3/reference-manual">Digilent Basys3 참조 설명서</a>에서 확인합니다.</p>
+<p><img src="images/ch01/digilent_basys3_callouts.png" alt="Basys3 보드 각 부분 번호와 설명표" />
+<em>그림 1-6. Basys3 보드 구성 요소 (출처: Digilent, Basys 3 Reference Manual)</em></p>
+<p><img src="images/ch01/digilent_basys3_front_back.jpg" alt="Basys3 보드 앞면과 뒷면 사진" />
+<em>그림 1-7. Basys3 앞면과 뒷면 (출처: Digilent, Basys 3 Reference Manual)</em></p>
+<table>
+<thead>
+<tr>
+  <th>FPGA 자원</th>
+  <th>사양</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>로직 셀</td>
+  <td>33,280개 (슬라이스 5,200개, 슬라이스당 6입력 LUT 4개 + 플립플롭 8개)</td>
+</tr>
+<tr>
+  <td>블록 RAM</td>
+  <td>1,800Kbit</td>
+</tr>
+<tr>
+  <td>클록 관리 타일</td>
+  <td>5개 (각각 PLL 포함)</td>
+</tr>
+<tr>
+  <td>DSP 슬라이스</td>
+  <td>90개</td>
+</tr>
+<tr>
+  <td>기타</td>
+  <td>온칩 ADC(XADC)</td>
 </tr>
 </tbody>
 </table>
 <table>
 <thead>
 <tr>
-  <th>인스턴스 구문 요소</th>
+  <th>보드 주변 장치</th>
+  <th>수량·내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>슬라이드 스위치</td>
+  <td>16개 (위치에 따라 HIGH/LOW 유지)</td>
+</tr>
+<tr>
+  <td>푸시 버튼</td>
+  <td>5개 (누를 때만 HIGH)</td>
+</tr>
+<tr>
+  <td>LED</td>
+  <td>16개 (FPGA 핀이 HIGH일 때 켜짐)</td>
+</tr>
+<tr>
+  <td>7세그먼트</td>
+  <td>4자리, 공통 애노드</td>
+</tr>
+<tr>
+  <td>기타</td>
+  <td>Pmod 3개 + XADC용 Pmod, 12비트 VGA, USB-UART, USB HID 호스트, 32Mbit Quad SPI 플래시</td>
+</tr>
+</tbody>
+</table>
+<p><strong>전원과 구성(Configuration)</strong></p>
+<ul>
+<li>전원은 USB-JTAG 포트(J4) 또는 외부 5V 전원(J6)에서 공급하고, 점퍼 JP2로 선택합니다. 전원 스위치는 SW16, 전원 상태 LED는 LD20입니다.</li>
+</ul>
+<p><img src="images/ch01/digilent_basys3_power.png" alt="Basys3 전원 회로 개요" />
+<em>그림 1-8. 전원 회로 개요 — JP2로 USB/외부 전원 선택 (출처: Digilent, Basys 3 Reference Manual)</em></p>
+<ul>
+<li>FPGA는 전원이 들어온 뒤 <strong>비트스트림(<code>.bit</code>)</strong> 으로 구성되어야 동작합니다. 구성 데이터는 FPGA 내부 SRAM에 저장되므로 전원을 끄면 사라집니다.</li>
+</ul>
+<table>
+<thead>
+<tr>
+  <th>구성 방법</th>
+  <th>특징</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>JTAG (J4, PROG)</td>
+  <td>Vivado Hardware Manager로 즉시 다운로드, 약 5초</td>
+</tr>
+<tr>
+  <td>Quad SPI 플래시</td>
+  <td>전원을 켤 때 자동 구성, 기록 1~2분</td>
+</tr>
+<tr>
+  <td>USB 메모리 (J2)</td>
+  <td>FAT32 루트에 <code>.bit</code> 하나, JP1을 USB로 설정</td>
+</tr>
+</tbody>
+</table>
+<p>프로그래밍이 끝나면 <strong>DONE</strong> LED가 켜집니다.</p>
+<p><img src="images/ch01/digilent_basys3_configuration.png" alt="Basys3 FPGA 구성 경로와 JP1 모드" />
+<em>그림 1-9. FPGA 구성(Configuration) 경로와 JP1 프로그래밍 모드 (출처: Digilent, Basys 3 Reference Manual)</em></p>
+<p><img src="images/ch01/digilent_basys3_jp1_mode.jpg" alt="JP1 점퍼 QSPI JTAG USB 위치 사진" />
+<em>그림 1-10. JP1 모드 점퍼와 PROG 버튼 (출처: Digilent, Basys 3 Reference Manual)</em></p>
+<p><img src="images/ch01/digilent_ft2232_connection.png" alt="Micro-USB J4와 FT2232, Artix-7 사이 JTAG·UART 연결" />
+<em>그림 1-11. 하나의 Micro-USB(J4)로 JTAG 프로그래밍과 UART 통신 (출처: Digilent, Basys 3 Reference Manual)</em></p>
+<p><strong>클록과 7세그먼트</strong></p>
+<ul>
+<li>100MHz 발진기가 <strong>W5</strong> 핀에 연결되어 있습니다.</li>
+<li>7세그먼트는 4자리가 세그먼트 신호(CA~CG, DP)를 공유하고 자리 선택(AN0~AN3)으로 구분하는 <strong>다중화(Multiplexing)</strong> 구조입니다. AN과 세그먼트 모두 <strong>LOW일 때 켜집니다(Active Low).</strong></li>
+<li>네 자리를 1~16ms 주기(약 60Hz~1kHz)로 번갈아 켜면 사람 눈에는 모두 켜진 것처럼 보입니다. 약 45Hz 이하로 느려지면 깜빡임이 보입니다.</li>
+</ul>
+<p><img src="images/ch01/digilent_basys3_7seg_common_anode.png" alt="4자리 공통 애노드 7세그먼트 구조" />
+<em>그림 1-12. 4자리 공통 애노드 7세그먼트 — AN0~3과 CA~CG·DP (출처: Digilent, Basys 3 Reference Manual)</em></p>
+<p><img src="images/ch01/digilent_basys3_7seg_patterns.png" alt="7세그먼트 숫자 0~9 표시 패턴" />
+<em>그림 1-13. 세그먼트 조합으로 만드는 숫자 패턴 (출처: Digilent, Basys 3 Reference Manual)</em></p>
+<p><img src="images/ch01/digilent_basys3_7seg_timing.png" alt="AN0~AN3를 차례로 켜는 스캔 타이밍" />
+<em>그림 1-14. 4자리 스캔 표시 타이밍 — Refresh 1~16ms (출처: Digilent, Basys 3 Reference Manual)</em></p>
+<p><strong>Basys3 회로도</strong></p>
+<p>보드 전체 회로도 7쪽입니다. 핀 번호와 주변 회로를 확인할 때 참고합니다.</p>
+<p><img src="images/ch01/digilent_basys3_schematic_p1.png" alt="Basys3 회로도 1쪽" />
+<em>그림 1-15. Basys3 회로도 1/7 (출처: Digilent, Basys 3 Schematic Rev C)</em></p>
+<p><img src="images/ch01/digilent_basys3_schematic_p2.png" alt="Basys3 회로도 2쪽" />
+<em>그림 1-16. Basys3 회로도 2/7 (출처: Digilent, Basys 3 Schematic Rev C)</em></p>
+<p><img src="images/ch01/digilent_basys3_schematic_p3.png" alt="Basys3 회로도 3쪽" />
+<em>그림 1-17. Basys3 회로도 3/7 (출처: Digilent, Basys 3 Schematic Rev C)</em></p>
+<p><img src="images/ch01/digilent_basys3_schematic_p4.png" alt="Basys3 회로도 4쪽" />
+<em>그림 1-18. Basys3 회로도 4/7 (출처: Digilent, Basys 3 Schematic Rev C)</em></p>
+<p><img src="images/ch01/digilent_basys3_schematic_p5.png" alt="Basys3 회로도 5쪽" />
+<em>그림 1-19. Basys3 회로도 5/7 (출처: Digilent, Basys 3 Schematic Rev C)</em></p>
+<p><img src="images/ch01/digilent_basys3_schematic_p6.png" alt="Basys3 회로도 6쪽" />
+<em>그림 1-20. Basys3 회로도 6/7 (출처: Digilent, Basys 3 Schematic Rev C)</em></p>
+<p><img src="images/ch01/digilent_basys3_schematic_p7.png" alt="Basys3 회로도 7쪽" />
+<em>그림 1-21. Basys3 회로도 7/7 (출처: Digilent, Basys 3 Schematic Rev C)</em></p>
+</section><section class="section" id="s07"><h2><span class="num">07</span>XDC 핀 제약 파일</h2><p>XDC(Xilinx Design Constraints)는 <strong>Verilog 포트를 보드의 실제 핀에 연결하고 클록 같은 동작 조건을 정의하는 파일</strong>입니다. HDL 코드는 FPGA 내부 논리만 정의하므로 외부 연결은 XDC가 맡습니다. 과거의 UCF 형식을 대신하며, Vivado는 Tcl 문법 기반의 XDC만 사용합니다.</p>
+<table>
+<thead>
+<tr>
+  <th>역할</th>
+  <th>예</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>핀 할당 (Pin Assignment)</td>
+  <td>스위치 → FPGA 입력 핀, LED → FPGA 출력 핀</td>
+</tr>
+<tr>
+  <td>타이밍 제약 (Timing Constraint)</td>
+  <td>클록 주파수 정의, Setup/Hold 조건 만족 유도</td>
+</tr>
+</tbody>
+</table>
+<p>파일명: <code>basys3.xdc</code></p>
+<div class="codeblock"><div class="codebar"><span>tcl</span></div><pre><code># SW0 입력
+set_property PACKAGE_PIN V17 [get_ports {sw[0]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {sw[0]}]
+
+# LED0 출력
+set_property PACKAGE_PIN U16 [get_ports {led[0]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {led[0]}]
+
+# 100MHz 시스템 클록 (주기 10ns)
+set_property PACKAGE_PIN W5 [get_ports clk]
+set_property IOSTANDARD LVCMOS33 [get_ports clk]
+create_clock -period 10.000 -name sys_clk [get_ports clk]
+</code></pre></div>
+<table>
+<thead>
+<tr>
+  <th>키워드</th>
   <th>의미</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-  <td><code>g_and_7408</code></td>
-  <td>사용할 모듈 이름</td>
+  <td><code>PACKAGE_PIN</code></td>
+  <td>FPGA 물리 핀 위치</td>
 </tr>
 <tr>
-  <td><code>u_and_7408</code></td>
-  <td>생성되는 회로(인스턴스) 이름</td>
+  <td><code>IOSTANDARD LVCMOS33</code></td>
+  <td>3.3V CMOS 전압 규격</td>
 </tr>
 <tr>
-  <td><code>.a(sw[0])</code></td>
-  <td>모듈 포트 <code>a</code>에 <code>sw[0]</code> 연결</td>
+  <td><code>get_ports</code></td>
+  <td>Verilog 포트 이름</td>
 </tr>
 <tr>
-  <td><code>.y(led[2])</code></td>
-  <td>모듈 출력 <code>y</code>를 <code>led[2]</code>에 연결</td>
+  <td><code>create_clock -period 10.000</code></td>
+  <td>10ns 주기 = 100MHz</td>
 </tr>
 </tbody>
 </table>
-<p>같은 모듈을 여러 번 생성할 수도 있습니다. 인스턴스 이름만 서로 달라야 합니다.</p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>g_and_7408 u1(.a(sw[0]), .b(sw[1]), .y(led[0]));
-g_and_7408 u2(.a(sw[2]), .b(sw[3]), .y(led[1]));
-</code></pre></div>
-<p><strong>확인 포인트:</strong> SW0·SW1 변화에 따른 LED 출력, RTL Analysis → Elaborated Design → Schematic에서 인스턴스 7개와 연결 구조, 포트 방향과 비트 폭 일치.</p>
-</section><section class="section" id="s11"><h2><span class="num">11</span>정리와 점검</h2><table>
+<p><strong>Basys3 자주 쓰는 핀</strong></p>
+<p><img src="images/ch01/digilent_basys3_basic_io.png" alt="스위치 버튼 LED 7세그먼트와 FPGA 핀 연결" />
+<em>그림 1-22. 기본 입출력 장치와 FPGA 핀 연결 (출처: Digilent, Basys 3 Reference Manual)</em></p>
+<table>
 <thead>
 <tr>
-  <th>개념</th>
-  <th>핵심</th>
+  <th>장치</th>
+  <th>핀</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-  <td>부울대수 공리</td>
-  <td>X·1=X, X+0=X, X·0=0, X+1=1</td>
+  <td>CLK 100MHz</td>
+  <td>W5</td>
 </tr>
 <tr>
-  <td>범용 게이트</td>
-  <td>NAND, NOR만으로 모든 회로 구현</td>
+  <td>SW0~SW7</td>
+  <td>V17, V16, W16, W17, W15, V15, W14, W13</td>
 </tr>
 <tr>
-  <td>XOR / XNOR</td>
-  <td>다름 검출 / 같음 검출</td>
+  <td>SW8~SW15</td>
+  <td>V2, T3, T2, R3, W2, U1, T1, R2</td>
 </tr>
 <tr>
-  <td>비트 vs 논리 연산</td>
-  <td><code>&amp;</code> 벡터 결과 / <code>&amp;&amp;</code> 참·거짓</td>
+  <td>LED0~LED7</td>
+  <td>U16, E19, U19, V19, W18, U15, U14, V14</td>
 </tr>
 <tr>
-  <td>벡터</td>
-  <td><code>[MSB:LSB]</code>, 결합 <code>{ }</code>, 반복 <code>{n{ }}</code></td>
+  <td>LED8~LED15</td>
+  <td>V13, V3, W3, U3, P3, N3, P1, L1</td>
 </tr>
 <tr>
-  <td>구조적 설계</td>
-  <td>모듈 정의 → 인스턴스로 조립</td>
+  <td>BTNC / BTNU / BTNL / BTNR / BTND</td>
+  <td>U18 / T18 / W19 / T17 / U17</td>
+</tr>
+<tr>
+  <td>세그먼트 CA~CG, DP</td>
+  <td>W7, W6, U8, V8, U5, V5, U7, V7</td>
+</tr>
+<tr>
+  <td>AN0~AN3</td>
+  <td>U2, U4, V4, W4</td>
+</tr>
+</tbody>
+</table>
+<p>스위치·LED·7세그먼트처럼 보드에 고정된 장치는 핀을 임의로 바꿀 수 없습니다. 항상 Digilent <strong>Master XDC</strong>를 기준으로 필요한 줄의 주석을 풀어 사용합니다.</p>
+<p><img src="images/ch01/basys3_master_xdc.png" alt="Basys3 Master XDC 파일 일부" />
+<em>그림 1-23. Basys3 Master XDC — 필요한 줄의 주석(#)을 풀어 사용</em></p>
+<table>
+<thead>
+<tr>
+  <th>자주 나는 오류</th>
+  <th>결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>핀 지정 누락</td>
+  <td>Implementation 실패 (Unconstrained Port)</td>
+</tr>
+<tr>
+  <td>핀 중복</td>
+  <td>DRC 오류</td>
+</tr>
+<tr>
+  <td>IO 규격 불일치</td>
+  <td>보드 손상 가능</td>
+</tr>
+</tbody>
+</table>
+</section><section class="section" id="s08"><h2><span class="num">08</span>첫 실습 SW0으로 LED0 제어</h2><p>스위치를 올리면 LED가 켜지고, 내리면 꺼지는 가장 작은 회로입니다.</p>
+<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>SW0 입력 → FPGA 내부 논리 → LED0 출력
+SW0 = 1 → LED0 = 1
+SW0 = 0 → LED0 = 0
+</code></pre></div>
+<p><strong>① 프로젝트 생성</strong></p>
+<ol>
+<li><code>vivado</code> 실행 → <strong>Create Project</strong></li>
+<li>Project Name <code>sw_led_project</code>, 위치는 <code>~/viva_work</code></li>
+<li><strong>RTL Project</strong> 선택</li>
+<li>Boards 탭에서 <strong>Basys3</strong> 선택 (또는 Parts에서 <code>xc7a35tcpg236-1</code>)</li>
+</ol>
+<p><strong>② Verilog 작성</strong> — Add Sources → Add or Create Design Sources</p>
+<p>파일명: <code>sw_led.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module sw_led(
+    input  wire sw0,    // 스위치 입력
+    output wire led0    // LED 출력
+);
+
+    // 입력을 그대로 출력으로 연결
+    assign led0 = sw0;
+
+endmodule
+</code></pre></div>
+<table>
+<thead>
+<tr>
+  <th>구문</th>
+  <th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>module sw_led( ... );</code></td>
+  <td>회로 블록의 시작과 포트 목록</td>
+</tr>
+<tr>
+  <td><code>input wire sw0</code></td>
+  <td>외부 스위치에서 FPGA 내부로 들어오는 신호</td>
+</tr>
+<tr>
+  <td><code>output wire led0</code></td>
+  <td>FPGA에서 외부 LED로 나가는 신호</td>
+</tr>
+<tr>
+  <td><code>assign led0 = sw0;</code></td>
+  <td>연속 할당, 입력 값을 그대로 출력에 연결</td>
+</tr>
+<tr>
+  <td><code>endmodule</code></td>
+  <td>모듈 끝</td>
+</tr>
+</tbody>
+</table>
+<p><strong>③ XDC 작성</strong> — Add Sources → Add or Create Constraints</p>
+<p>파일명: <code>sw_led.xdc</code></p>
+<div class="codeblock"><div class="codebar"><span>tcl</span></div><pre><code>set_property PACKAGE_PIN V17 [get_ports sw0]
+set_property IOSTANDARD LVCMOS33 [get_ports sw0]
+set_property PACKAGE_PIN U16 [get_ports led0]
+set_property IOSTANDARD LVCMOS33 [get_ports led0]
+</code></pre></div>
+<p><strong>④ 합성 → 구현 → 비트스트림 → 다운로드</strong></p>
+<table>
+<thead>
+<tr>
+  <th>단계</th>
+  <th>Flow Navigator</th>
+  <th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Synthesis</td>
+  <td>Run Synthesis</td>
+  <td>Verilog 코드 → 논리 게이트 회로 변환</td>
+</tr>
+<tr>
+  <td>Implementation</td>
+  <td>Run Implementation</td>
+  <td>FPGA 내부 배치(Place)와 배선(Route)</td>
+</tr>
+<tr>
+  <td>Bitstream</td>
+  <td>Generate Bitstream</td>
+  <td>FPGA 설정 파일 <code>.bit</code> 생성</td>
+</tr>
+<tr>
+  <td>Program</td>
+  <td>Open Hardware Manager → Open Target → Auto Connect → Program Device</td>
+  <td>보드에 다운로드</td>
+</tr>
+</tbody>
+</table>
+<p><img src="images/ch01/hw_manager_open_target.png" alt="Hardware Manager에서 Open Target 메뉴" />
+<em>그림 1-24. Hardware Manager → Open Target (Vivado 2019.2 화면 예시)</em></p>
+<p><strong>⑤ 동작 확인</strong></p>
+<table>
+<thead>
+<tr>
+  <th>SW0</th>
+  <th>LED0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>OFF (아래)</td>
+  <td>OFF</td>
+</tr>
+<tr>
+  <td>ON (위)</td>
+  <td>ON</td>
+</tr>
+</tbody>
+</table>
+<p>이 회로는 <code>LED0 = SW0</code>, 즉 <strong>버퍼(Buffer)</strong> 와 같은 동작입니다.</p>
+<p><img src="images/ch01/basys3_program_photo.jpg" alt="다운로드 후 Basys3 보드를 조작하는 사진" />
+<em>그림 1-25. 다운로드 후 보드에서 동작 확인</em></p>
+<table>
+<thead>
+<tr>
+  <th>오류</th>
+  <th>원인</th>
+  <th>해결</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>포트 이름 불일치</td>
+  <td><code>sw0</code>과 <code>SW0</code>은 다른 이름</td>
+  <td>Verilog와 XDC 이름을 똑같이</td>
+</tr>
+<tr>
+  <td>Unconstrained Port</td>
+  <td>XDC 핀 누락</td>
+  <td>모든 포트에 핀 지정</td>
+</tr>
+<tr>
+  <td>보드 연결 실패</td>
+  <td>케이블·전원·Runtime</td>
+  <td>드라이버와 보드 인식 절 다시 확인</td>
+</tr>
+</tbody>
+</table>
+</section><section class="section" id="s09"><h2><span class="num">09</span>Ubuntu 명령어와 한글 입력</h2><p><strong>자주 쓰는 명령어</strong></p>
+<table>
+<thead>
+<tr>
+  <th>명령어</th>
+  <th>기능</th>
+  <th>예</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>pwd</code></td>
+  <td>현재 위치 확인</td>
+  <td><code>pwd</code></td>
+</tr>
+<tr>
+  <td><code>ls -al</code></td>
+  <td>숨김 파일 포함 목록</td>
+  <td><code>ls -al</code></td>
+</tr>
+<tr>
+  <td><code>cd</code>, <code>cd ..</code>, <code>cd ~</code></td>
+  <td>폴더 이동·상위·홈</td>
+  <td><code>cd ~/Downloads</code></td>
+</tr>
+<tr>
+  <td><code>mkdir</code></td>
+  <td>폴더 생성</td>
+  <td><code>mkdir project</code></td>
+</tr>
+<tr>
+  <td><code>cp</code>, <code>cp -r</code></td>
+  <td>파일·폴더 복사</td>
+  <td><code>cp -r src dst</code></td>
+</tr>
+<tr>
+  <td><code>mv</code></td>
+  <td>이동 또는 이름 변경</td>
+  <td><code>mv a.txt b.txt</code></td>
+</tr>
+<tr>
+  <td><code>rm</code>, <code>rm -rf</code></td>
+  <td>파일·폴더 삭제</td>
+  <td><strong><code>rm -rf</code>는 복구 불가, 주의</strong></td>
+</tr>
+<tr>
+  <td><code>sudo apt install</code> / <code>remove</code></td>
+  <td>프로그램 설치·제거</td>
+  <td><code>sudo apt install git</code></td>
+</tr>
+<tr>
+  <td><code>lsusb</code></td>
+  <td>USB 장치 확인</td>
+  <td>Basys3 연결 확인</td>
+</tr>
+<tr>
+  <td><code>djtgcfg enum</code></td>
+  <td>Digilent 보드 확인</td>
+  <td></td>
+</tr>
+<tr>
+  <td><code>ls /dev/tty*</code></td>
+  <td>시리얼 포트 확인</td>
+  <td></td>
+</tr>
+<tr>
+  <td><code>groups</code></td>
+  <td>현재 사용자 그룹 확인</td>
+  <td><code>dialout</code>, <code>plugdev</code> 포함 여부</td>
+</tr>
+<tr>
+  <td><code>chmod +x</code></td>
+  <td>실행 권한 부여</td>
+  <td><code>chmod +x file.sh</code></td>
+</tr>
+<tr>
+  <td><code>which vivado</code>, <code>echo $PATH</code></td>
+  <td>실행 파일·경로 확인</td>
+  <td></td>
+</tr>
+<tr>
+  <td><code>clear</code> / <code>Ctrl + L</code> / <code>reset</code></td>
+  <td>화면 정리·터미널 복구</td>
+  <td></td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+  <th>오류 메시지</th>
+  <th>원인</th>
+  <th>해결</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>permission denied</code></td>
+  <td>권한</td>
+  <td><code>usermod</code> 후 재부팅</td>
+</tr>
+<tr>
+  <td><code>command not found</code></td>
+  <td>환경 변수</td>
+  <td><code>source settings64.sh</code></td>
+</tr>
+<tr>
+  <td><code>libtinfo.so.5</code></td>
+  <td>라이브러리</td>
+  <td><code>apt install</code>로 보완</td>
+</tr>
+<tr>
+  <td><code>device not found</code></td>
+  <td>USB</td>
+  <td><code>lsusb</code>로 확인</td>
+</tr>
+<tr>
+  <td><code>no cable found</code></td>
+  <td>드라이버</td>
+  <td>케이블 드라이버·Runtime 설치</td>
+</tr>
+</tbody>
+</table>
+<p><strong>한글 입력(ibus) 설정</strong></p>
+<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># 입력기 프레임워크(ibus)와 한글 엔진 설치 → 기본 입력기로 지정
+sudo apt update
+sudo apt install -y ibus ibus-hangul
+im-config -n ibus
+</code></pre></div>
+<ol>
+<li>Settings → Keyboard → Input Sources에 <strong>English (US)</strong> 와 <strong>Korean (Hangul)</strong> 두 개만 둡니다.</li>
+<li>View and Customize Shortcuts → Switch Input Source를 <code>Shift + Space</code> 또는 오른쪽 <code>Alt</code>로 지정합니다.</li>
+<li>재부팅 후 <code>ps -ef | grep ibus</code>, <code>ibus engine</code>으로 동작을 확인합니다.</li>
+</ol>
+<p>입력 전환이 멈추면 <code>pkill -f ibus</code> → <code>ibus-daemon -drx</code>로 재시작하고, 그래도 안 되면 재부팅합니다.</p>
+</section><section class="section" id="s10"><h2><span class="num">10</span>정리와 점검</h2><table>
+<thead>
+<tr>
+  <th>성공 단계</th>
+  <th>확인 방법</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>설치 성공</td>
+  <td><code>vivado</code> 실행</td>
+</tr>
+<tr>
+  <td>드라이버 성공</td>
+  <td><code>which djtgcfg</code> 경로 출력</td>
+</tr>
+<tr>
+  <td>보드 성공</td>
+  <td><code>djtgcfg enum</code> → <code>Device: Basys3</code></td>
+</tr>
+<tr>
+  <td>실습 성공</td>
+  <td>SW0에 따라 LED0 ON/OFF</td>
 </tr>
 </tbody>
 </table>
 <p><strong>스스로 점검하기</strong></p>
 <ol>
-<li><code>4'b1010 | 4'b1100</code>과 <code>4'b1010 || 4'b1100</code>의 결과를 각각 쓰시오.</li>
-<li><code>^in</code>이 1이 되는 조건은 무엇이며 어디에 쓰이는가?</li>
-<li>74HC51의 1Y가 0이 되는 입력 조합 두 가지를 쓰시오.</li>
-<li>인스턴스 이름이 중복되면 어떤 문제가 생기는가?</li>
-<li>XNOR 게이트는 XOR 게이트와 어떤 관계인가?</li>
+<li>Vivado만 설치하면 Basys3가 바로 인식되는가? 그렇지 않다면 무엇이 더 필요한가?</li>
+<li>Open Target이 동작하지 않을 때 가장 먼저 확인할 것은 무엇인가?</li>
+<li>XDC의 두 가지 역할은 무엇인가?</li>
+<li>Verilog 포트 이름이 <code>sw0</code>이고 XDC에 <code>SW0</code>이라 적으면 어떤 일이 생기는가?</li>
+<li>Synthesis와 Implementation의 차이를 한 문장씩 설명하시오.</li>
 </ol>
-<blockquote>
-<p><strong>핵심 철학:</strong> Verilog는 코드를 실행하는 것이 아니라 FPGA 내부에 실제 디지털 회로를 생성합니다.</p>
-</blockquote>
+<p><strong>핵심 키워드:</strong> Adept Runtime · Hardware Manager · Open Target · XDC · <code>PACKAGE_PIN</code> · <code>IOSTANDARD</code> · Synthesis · Implementation · Bitstream</p>
 </section><div class="chapter-links" id="chapter-links"></div></main></div>
-<footer class="footer">Digital Design · FPGA · Verilog · v01  · 실습 결과는 실제 환경에서 검증</footer>
-<script>window.COURSE={"title": "Digital Design · FPGA · Verilog", "short_title": "DIGITAL DESIGN FPGA", "home_label": "전체 학습 안내서", "chapters": [{"id": "ch01", "number": 1, "title": "개발환경과 첫 실습", "file": "ch01_fpga_environment_v01.html"}, {"id": "ch02", "number": 2, "title": "논리 게이트와 Verilog", "file": "ch02_logic_gates_v01.html"}, {"id": "ch03", "number": 3, "title": "조합회로 설계", "file": "ch03_combinational_v01.html"}, {"id": "ch04", "number": 4, "title": "순차회로 설계", "file": "ch04_sequential_v01.html"}, {"id": "ch05", "number": 5, "title": "스톱워치와 디지털 시계", "file": "ch05_stopwatch_clock_v01.html"}, {"id": "ch06", "number": 6, "title": "Vivado IP 블록 설계", "file": "ch06_vivado_ip_v01.html"}, {"id": "ch07", "number": 7, "title": "FSM 회로 설계", "file": "ch07_fsm_v01.html"}]};</script><script>/*
+<footer class="footer">Digital Design · FPGA · Verilog · v02  · 실습 결과는 실제 환경에서 검증</footer>
+<script>window.COURSE={"title": "Digital Design · FPGA · Verilog", "short_title": "DIGITAL DESIGN FPGA", "home_label": "전체 학습 안내서", "chapters": [{"id": "ch01", "number": 1, "title": "개발환경과 첫 실습", "file": "ch01_fpga_environment_v02.html"}, {"id": "ch02", "number": 2, "title": "논리 게이트와 Verilog", "file": "ch02_logic_gates_v02.html"}, {"id": "ch03", "number": 3, "title": "조합회로 설계", "file": "ch03_combinational_v02.html"}, {"id": "ch04", "number": 4, "title": "순차회로 설계", "file": "ch04_sequential_v02.html"}, {"id": "ch05", "number": 5, "title": "스톱워치와 디지털 시계", "file": "ch05_stopwatch_clock_v02.html"}, {"id": "ch06", "number": 6, "title": "Vivado IP 블록 설계", "file": "ch06_vivado_ip_v02.html"}, {"id": "ch07", "number": 7, "title": "FSM 회로 설계", "file": "ch07_fsm_v02.html"}]};</script><script>/*
  * 교육용 HTML 공통 동작 — 유지보수용 원본 (STANDARD 4·10.3·10.4)
  * 페이지 본문은 바꾸지 않고 탐색·이전/다음·모바일 메뉴·코드 복사만 덧붙인다.
  * 입력: 페이지의 window.COURSE (tools/guide/build_guides.py가 실제 존재하는 장만 넣음),

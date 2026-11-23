@@ -576,15 +576,38 @@ pre code {
     height: auto;
   }
 }
+
+/* 저장소별 추가: 본문 그림·캡션 (digital_design_fpga_verilog) */
+.section img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 18px auto 6px;
+  border: 1px solid #e1e1dc;
+  border-radius: 8px;
+  background: #ffffff;
+  max-height: 640px;
+  width: auto;
+  object-fit: contain;
+}
+.section p > img + em,
+.section p > em.caption {
+  display: block;
+  margin: 0 auto 14px;
+  text-align: center;
+  font-size: 0.84rem;
+  font-style: normal;
+  color: #5b5e68;
+}
 </style></head><body data-chapter="">
 <button type="button" class="mobile-menu" id="mobile-menu" aria-controls="course-nav" aria-expanded="false">☰ 장·목차</button><div class="shade" id="shade"></div>
 <header class="hero"><div class="hero-inner"><p class="kicker">DIGITAL DESIGN FPGA</p><h1>Digital Design · FPGA · Verilog</h1><p>Basys3 FPGA 보드와 Vivado를 이용해 개발환경 구축부터 논리 게이트, 조합회로, 순차회로, 스톱워치·디지털 시계 응용, Vivado IP 설계, FSM까지 단계별로 익히는 학습안내서입니다.</p><div class="chips"><span class="chip">단계별 학습</span><span class="chip">실습 중심</span><span class="chip">GitHub Pages</span></div></div></header>
 <div class="wrap"><nav class="toc" id="course-nav" aria-label="장과 절 탐색"></nav><main class="content" id="main-content"><section class="section" id="intro"><h2><span class="num">00</span>과정 개요</h2><p>Basys3 FPGA 보드와 Vivado를 이용해 개발환경 구축부터 논리 게이트, 조합회로, 순차회로, 스톱워치·디지털 시계 응용, Vivado IP 설계, FSM까지 단계별로 익히는 학습안내서입니다.</p></section>
 <section class="section" id="roadmap"><h2><span class="num">01</span>전체 학습 테크트리</h2><div class="flow"><div class="step"><strong>01 · 개발환경과 첫 실습</strong> — Vivado 설치 → 보드 인식 → XDC → SW0으로 LED0 제어</div><div class="down">↓</div><div class="step"><strong>02 · 논리 게이트와 Verilog</strong> — 부울대수 → 기본 게이트 → 벡터·연산자 → 74 시리즈 → 구조적 설계</div><div class="down">↓</div><div class="step"><strong>03 · 조합회로 설계</strong> — 가산기 → 7세그먼트 → MUX·Decoder·ALU → 미니 프로젝트</div><div class="down">↓</div><div class="step"><strong>04 · 순차회로 설계</strong> — 래치 → 플립플롭 → 레지스터 → 시프트 레지스터 → 카운터·FND</div><div class="down">↓</div><div class="step"><strong>05 · 스톱워치와 디지털 시계</strong> — 모듈 분리 → Tick 체인 → Top 연결 → Basys3 동작</div><div class="down">↓</div><div class="step"><strong>06 · Vivado IP 블록 설계</strong> — Block Design → IP 설정·연결 → HDL Wrapper → LED 점멸</div><div class="down">↓</div><div class="step"><strong>07 · FSM 회로 설계</strong> — FSM 구조 → Moore·Mealy → 구현 방식 비교 → 시퀀스 검출</div></div></section>
-<section class="section" id="chapters"><h2><span class="num">02</span>장별 목차</h2><div class="chapter-grid"><a class="chapter-card" href="ch01_fpga_environment_v01.html"><span>CHAPTER 01</span><b>개발환경과 첫 실습</b><span>Vivado 설치 → 보드 인식 → XDC → SW0으로 LED0 제어</span></a><a class="chapter-card" href="ch02_logic_gates_v01.html"><span>CHAPTER 02</span><b>논리 게이트와 Verilog</b><span>부울대수 → 기본 게이트 → 벡터·연산자 → 74 시리즈 → 구조적 설계</span></a><a class="chapter-card" href="ch03_combinational_v01.html"><span>CHAPTER 03</span><b>조합회로 설계</b><span>가산기 → 7세그먼트 → MUX·Decoder·ALU → 미니 프로젝트</span></a><a class="chapter-card" href="ch04_sequential_v01.html"><span>CHAPTER 04</span><b>순차회로 설계</b><span>래치 → 플립플롭 → 레지스터 → 시프트 레지스터 → 카운터·FND</span></a><a class="chapter-card" href="ch05_stopwatch_clock_v01.html"><span>CHAPTER 05</span><b>스톱워치와 디지털 시계</b><span>모듈 분리 → Tick 체인 → Top 연결 → Basys3 동작</span></a><a class="chapter-card" href="ch06_vivado_ip_v01.html"><span>CHAPTER 06</span><b>Vivado IP 블록 설계</b><span>Block Design → IP 설정·연결 → HDL Wrapper → LED 점멸</span></a><a class="chapter-card" href="ch07_fsm_v01.html"><span>CHAPTER 07</span><b>FSM 회로 설계</b><span>FSM 구조 → Moore·Mealy → 구현 방식 비교 → 시퀀스 검출</span></a></div></section>
+<section class="section" id="chapters"><h2><span class="num">02</span>장별 목차</h2><div class="chapter-grid"><a class="chapter-card" href="ch01_fpga_environment_v02.html"><span>CHAPTER 01</span><b>개발환경과 첫 실습</b><span>Vivado 설치 → 보드 인식 → XDC → SW0으로 LED0 제어</span></a><a class="chapter-card" href="ch02_logic_gates_v02.html"><span>CHAPTER 02</span><b>논리 게이트와 Verilog</b><span>부울대수 → 기본 게이트 → 벡터·연산자 → 74 시리즈 → 구조적 설계</span></a><a class="chapter-card" href="ch03_combinational_v02.html"><span>CHAPTER 03</span><b>조합회로 설계</b><span>가산기 → 7세그먼트 → MUX·Decoder·ALU → 미니 프로젝트</span></a><a class="chapter-card" href="ch04_sequential_v02.html"><span>CHAPTER 04</span><b>순차회로 설계</b><span>래치 → 플립플롭 → 레지스터 → 시프트 레지스터 → 카운터·FND</span></a><a class="chapter-card" href="ch05_stopwatch_clock_v02.html"><span>CHAPTER 05</span><b>스톱워치와 디지털 시계</b><span>모듈 분리 → Tick 체인 → Top 연결 → Basys3 동작</span></a><a class="chapter-card" href="ch06_vivado_ip_v02.html"><span>CHAPTER 06</span><b>Vivado IP 블록 설계</b><span>Block Design → IP 설정·연결 → HDL Wrapper → LED 점멸</span></a><a class="chapter-card" href="ch07_fsm_v02.html"><span>CHAPTER 07</span><b>FSM 회로 설계</b><span>FSM 구조 → Moore·Mealy → 구현 방식 비교 → 시퀀스 검출</span></a></div></section>
 <section class="section" id="practice"><h2><span class="num">03</span>학습·검증 원칙</h2><p>개념 → 구조도 → 단계별 코드 → 예상 출력 → 검증 → 완료 기준 순서로 진행합니다. 실제 실행 결과와 교육용 예시는 명확히 구분합니다.</p><p>코드와 설정은 공식 문서를 우선하며, 외부 시스템을 수정하는 작업에는 사용자 승인 및 원본 보호를 적용합니다.</p></section><div class="chapter-links" id="chapter-links"></div></main></div>
-<footer class="footer">Digital Design · FPGA · Verilog · v01  · 실습 결과는 실제 환경에서 검증</footer>
-<script>window.COURSE={"title": "Digital Design · FPGA · Verilog", "short_title": "DIGITAL DESIGN FPGA", "home_label": "전체 학습 안내서", "chapters": [{"id": "ch01", "number": 1, "title": "개발환경과 첫 실습", "file": "ch01_fpga_environment_v01.html"}, {"id": "ch02", "number": 2, "title": "논리 게이트와 Verilog", "file": "ch02_logic_gates_v01.html"}, {"id": "ch03", "number": 3, "title": "조합회로 설계", "file": "ch03_combinational_v01.html"}, {"id": "ch04", "number": 4, "title": "순차회로 설계", "file": "ch04_sequential_v01.html"}, {"id": "ch05", "number": 5, "title": "스톱워치와 디지털 시계", "file": "ch05_stopwatch_clock_v01.html"}, {"id": "ch06", "number": 6, "title": "Vivado IP 블록 설계", "file": "ch06_vivado_ip_v01.html"}, {"id": "ch07", "number": 7, "title": "FSM 회로 설계", "file": "ch07_fsm_v01.html"}]};</script><script>/*
+<footer class="footer">Digital Design · FPGA · Verilog · v02  · 실습 결과는 실제 환경에서 검증</footer>
+<script>window.COURSE={"title": "Digital Design · FPGA · Verilog", "short_title": "DIGITAL DESIGN FPGA", "home_label": "전체 학습 안내서", "chapters": [{"id": "ch01", "number": 1, "title": "개발환경과 첫 실습", "file": "ch01_fpga_environment_v02.html"}, {"id": "ch02", "number": 2, "title": "논리 게이트와 Verilog", "file": "ch02_logic_gates_v02.html"}, {"id": "ch03", "number": 3, "title": "조합회로 설계", "file": "ch03_combinational_v02.html"}, {"id": "ch04", "number": 4, "title": "순차회로 설계", "file": "ch04_sequential_v02.html"}, {"id": "ch05", "number": 5, "title": "스톱워치와 디지털 시계", "file": "ch05_stopwatch_clock_v02.html"}, {"id": "ch06", "number": 6, "title": "Vivado IP 블록 설계", "file": "ch06_vivado_ip_v02.html"}, {"id": "ch07", "number": 7, "title": "FSM 회로 설계", "file": "ch07_fsm_v02.html"}]};</script><script>/*
  * 교육용 HTML 공통 동작 — 유지보수용 원본 (STANDARD 4·10.3·10.4)
  * 페이지 본문은 바꾸지 않고 탐색·이전/다음·모바일 메뉴·코드 복사만 덧붙인다.
  * 입력: 페이지의 window.COURSE (tools/guide/build_guides.py가 실제 존재하는 장만 넣음),

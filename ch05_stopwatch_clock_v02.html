@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Vivado 설치 → 보드 인식 → XDC → SW0으로 LED0 제어"><title>제01장 · 개발환경과 첫 실습 · Digital Design · FPGA · Verilog</title>
+<meta name="description" content="모듈 분리 → Tick 체인 → Top 연결 → Basys3 동작"><title>제05장 · 스톱워치와 디지털 시계 · Digital Design · FPGA · Verilog</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>/*
@@ -576,1012 +576,1153 @@ pre code {
     height: auto;
   }
 }
-</style></head><body data-chapter="ch01">
+
+/* 저장소별 추가: 본문 그림·캡션 (digital_design_fpga_verilog) */
+.section img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 18px auto 6px;
+  border: 1px solid #e1e1dc;
+  border-radius: 8px;
+  background: #ffffff;
+  max-height: 640px;
+  width: auto;
+  object-fit: contain;
+}
+.section p > img + em,
+.section p > em.caption {
+  display: block;
+  margin: 0 auto 14px;
+  text-align: center;
+  font-size: 0.84rem;
+  font-style: normal;
+  color: #5b5e68;
+}
+</style></head><body data-chapter="ch05">
 <button type="button" class="mobile-menu" id="mobile-menu" aria-controls="course-nav" aria-expanded="false">☰ 장·목차</button><div class="shade" id="shade"></div>
-<header class="hero"><div class="hero-inner"><p class="kicker">DIGITAL DESIGN FPGA · CHAPTER 01</p><h1>제01장 · 개발환경과 첫 실습</h1><p>Vivado 설치 → 보드 인식 → XDC → SW0으로 LED0 제어</p><div class="chips"><span class="chip">Ubuntu</span><span class="chip">Vivado 2024.2</span><span class="chip">Basys3</span><span class="chip">XDC</span></div></div></header>
-<div class="wrap"><nav class="toc" id="course-nav" aria-label="장과 절 탐색"></nav><main class="content" id="main-content"><section class="section" id="s00"><h2><span class="num">00</span>학습 안내</h2><p><strong>잘 시작하면 반은 끝난 것입니다.</strong> 이 장에서는 Ubuntu(우분투) 24.04에 AMD Vivado(비바도, FPGA 설계 도구) 2024.2를 설치하고, Basys3 보드를 PC에서 인식시킨 뒤, 스위치 하나로 LED 하나를 켜는 첫 회로까지 완성합니다.</p>
+<header class="hero"><div class="hero-inner"><p class="kicker">DIGITAL DESIGN FPGA · CHAPTER 05</p><h1>제05장 · 스톱워치와 디지털 시계</h1><p>모듈 분리 → Tick 체인 → Top 연결 → Basys3 동작</p><div class="chips"><span class="chip">Stopwatch</span><span class="chip">HH:MM</span><span class="chip">Structural Top</span></div></div></header>
+<div class="wrap"><nav class="toc" id="course-nav" aria-label="장과 절 탐색"></nav><main class="content" id="main-content"><section class="section" id="s00"><h2><span class="num">00</span>학습 안내</h2><p>4장에서 만든 Tick·BCD 카운터·FND 스캔을 <strong>기능별 모듈로 나누고 최상위(Top) 모듈에서 연결</strong>해, 실제로 쓸 수 있는 두 가지 시스템을 완성합니다.</p>
 <table>
 <thead>
 <tr>
-  <th>항목</th>
+  <th>과제</th>
+  <th>표시 형식</th>
+  <th>기준 Tick</th>
+  <th>표시 범위</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>스톱워치</td>
+  <td><code>SS.HH</code> (초.백분의 1초)</td>
+  <td>0.01초</td>
+  <td>00.00 ~ 99.99</td>
+</tr>
+<tr>
+  <td>24시간 디지털 시계</td>
+  <td><code>HH.MM</code> (시.분)</td>
+  <td>1초 → 1분</td>
+  <td>00.00 ~ 23.59</td>
+</tr>
+</tbody>
+</table>
+<p><strong>구조화 설계 원칙</strong></p>
+<table>
+<thead>
+<tr>
+  <th>원칙</th>
   <th>내용</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-  <td>보드</td>
-  <td>Digilent Basys3 (AMD Artix-7 <code>XC7A35T-1CPG236C</code>)</td>
+  <td>하나의 모듈 = 하나의 기능</td>
+  <td>Tick 생성, 카운터, 제어, 스캔, MUX, 디코더를 분리</td>
 </tr>
 <tr>
-  <td>설계 도구</td>
-  <td>Vivado 2024.2 ML Standard</td>
+  <td>Top은 연결 중심</td>
+  <td>기능 로직은 하위 모듈에, Top에는 인스턴스와 간단한 결합식만</td>
 </tr>
 <tr>
-  <td>편집기</td>
-  <td>VS Code</td>
+  <td>단일 클록</td>
+  <td>모든 레지스터는 <code>always @(posedge clk)</code></td>
 </tr>
 <tr>
-  <td>운영체제</td>
-  <td>Ubuntu 24.04</td>
+  <td>Tick은 Enable</td>
+  <td>0.01초·1초·1분 Tick 모두 1클록 폭 Enable 신호</td>
 </tr>
 <tr>
-  <td>완료 기준</td>
-  <td><code>djtgcfg enum</code>에서 Basys3 인식, SW0으로 LED0 ON/OFF</td>
+  <td>모듈 단위 검증</td>
+  <td>카운터·제어 모듈마다 테스트벤치로 먼저 확인</td>
 </tr>
 </tbody>
 </table>
-<p><strong>전체 흐름</strong></p>
-<ol>
-<li>시스템 업데이트와 필수 패키지 설치</li>
-<li>Vivado 설치와 환경 변수 등록</li>
-<li>케이블 드라이버·Digilent Adept Runtime 설치, 사용자 권한 설정</li>
-<li>작업 폴더 준비와 VS Code 연동</li>
-<li>Basys3 하드웨어와 XDC(핀 제약 파일) 이해</li>
-<li>SW0 → LED0 첫 실습</li>
-</ol>
-<blockquote>
-<p><strong>준비물:</strong> Basys3 보드와 <strong>데이터 통신이 되는</strong> Micro USB 케이블. 충전 전용 케이블로는 보드가 인식되지 않습니다.</p>
-</blockquote>
-</section><section class="section" id="s01"><h2><span class="num">01</span>Vivado 설치 준비</h2><p>터미널은 <code>Ctrl + Alt + T</code>로 엽니다. 먼저 시스템을 최신 상태로 맞춥니다.</p>
-<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># 패키지 목록 갱신 → 설치된 패키지 업그레이드
-sudo apt update
-sudo apt upgrade -y
+</section><section class="section" id="s01"><h2><span class="num">01</span>스톱워치 구조</h2><p><strong>표시 기준</strong></p>
+<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>digit3  digit2  .  digit1  digit0
+ 10초    1초   DP  0.1초   0.01초
 </code></pre></div>
-<p>Vivado 화면 표시, USB 장치 인식, 드라이버 빌드에 필요한 라이브러리를 설치합니다.</p>
-<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># Vivado GUI·USB·드라이버 빌드에 필요한 라이브러리 일괄 설치
-sudo apt install -y build-essential git make gcc g++ libncurses6 libtinfo6 \
-  libusb-1.0-0 libgtk-3-0 libx11-6 libxext6 libxrender1 libxtst6 libxi6 \
-  libxft2 net-tools
-</code></pre></div>
-<table>
-<thead>
-<tr>
-  <th>패키지</th>
-  <th>용도</th>
-  <th>비고</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><code>build-essential</code>, <code>gcc</code>, <code>g++</code></td>
-  <td>컴파일 기본 도구</td>
-  <td>드라이버·도구 빌드</td>
-</tr>
-<tr>
-  <td><code>git</code>, <code>make</code></td>
-  <td>소스 관리·빌드 자동화</td>
-  <td>선택</td>
-</tr>
-<tr>
-  <td><code>libncurses6</code>, <code>libtinfo6</code></td>
-  <td>터미널 화면·정보</td>
-  <td><code>libncurses6</code>는 선택</td>
-</tr>
-<tr>
-  <td><code>libusb-1.0-0</code></td>
-  <td>USB 통신</td>
-  <td>FPGA 보드 인식</td>
-</tr>
-<tr>
-  <td><code>libgtk-3-0</code>, <code>libx11-6</code>, <code>libxext6</code>, <code>libxrender1</code></td>
-  <td>GUI 구성·그래픽 출력</td>
-  <td>Vivado 화면</td>
-</tr>
-<tr>
-  <td><code>libxtst6</code>, <code>libxi6</code></td>
-  <td>키보드·마우스 입력 처리</td>
-  <td></td>
-</tr>
-<tr>
-  <td><code>libxft2</code></td>
-  <td>글꼴 표시</td>
-  <td></td>
-</tr>
-<tr>
-  <td><code>net-tools</code></td>
-  <td><code>ifconfig</code> 등 네트워크 도구</td>
-  <td>선택</td>
-</tr>
-</tbody>
-</table>
-<p><strong>설치 파일 내려받기</strong></p>
-<p>AMD 공식 다운로드 페이지에서 회원 가입 후 Linux용 통합 설치 파일을 <code>~/Downloads</code>에 내려받습니다. 설치 중에도 로그인이 필요하므로 계정은 반드시 만들어 둡니다.</p>
-<ul>
-<li>다운로드: <a href="https://www.xilinx.com/support/download.html">AMD Vivado Design Tools</a></li>
-<li>파일 형태: <code>FPGAs_AdaptiveSoCs_Unified_2024.2_*.bin</code></li>
-</ul>
-</section><section class="section" id="s02"><h2><span class="num">02</span>Vivado 설치와 환경 설정</h2><div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># 설치 파일 위치로 이동 → 실행 권한 부여 → 설치 프로그램 실행
-cd ~/Downloads
-chmod +x FPGAs_AdaptiveSoCs_Unified_2024.2_*.bin
-sudo ./FPGAs_AdaptiveSoCs_Unified_2024.2_*.bin
-</code></pre></div>
-<p>설치 화면에서는 Basys3에 필요한 항목만 고릅니다. 설치 용량과 시간을 크게 줄일 수 있습니다.</p>
-<table>
-<thead>
-<tr>
-  <th>항목</th>
-  <th>선택</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>Product</td>
-  <td>Vivado</td>
-</tr>
-<tr>
-  <td>Edition</td>
-  <td>ML Standard</td>
-</tr>
-<tr>
-  <td>Device</td>
-  <td><strong>7 Series</strong> (Basys3 → Artix-7 → 7 Series)</td>
-</tr>
-<tr>
-  <td>설치 경로</td>
-  <td><code>/tools/Xilinx</code></td>
-</tr>
-</tbody>
-</table>
-<table>
-<thead>
-<tr>
-  <th>선택하지 않는 항목</th>
-  <th>이유</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>Zynq / MPSoC</td>
-  <td>Basys3 디바이스가 아님</td>
-</tr>
-<tr>
-  <td>Vitis</td>
-  <td>소프트웨어 개발용</td>
-</tr>
-<tr>
-  <td>HLS</td>
-  <td>C 기반 설계용</td>
-</tr>
-<tr>
-  <td>UltraScale / Versal</td>
-  <td>고급 FPGA용</td>
-</tr>
-<tr>
-  <td>Model Composer</td>
-  <td>MATLAB 연동용</td>
-</tr>
-</tbody>
-</table>
-<p>나중에 개별 학습이 필요하면 별도 PC에 추가로 설치하면 됩니다.</p>
-<p><strong>환경 변수 등록</strong></p>
-<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># 현재 터미널에만 적용
-source /tools/Xilinx/Vivado/2024.2/settings64.sh
-
-# 새 터미널에서도 자동 적용되도록 ~/.bashrc 끝에 등록
-echo 'source /tools/Xilinx/Vivado/2024.2/settings64.sh' &gt;&gt; ~/.bashrc
-
-# 실행 확인
-vivado
-</code></pre></div>
-<p><code>vivado: command not found</code>가 나오면 <code>settings64.sh</code>가 적용되지 않은 것입니다. 설치 경로가 <code>/opt/Xilinx</code>처럼 다르면 경로를 맞춰 다시 등록합니다.</p>
-</section><section class="section" id="s03"><h2><span class="num">03</span>드라이버와 보드 인식</h2><p>PC와 Basys3는 두 단계의 소프트웨어를 거쳐 연결됩니다.</p>
-<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>PC (Vivado)
-   ↓
-Digilent Adept Runtime (USB 드라이버)
-   ↓
-USB 케이블 (전원 + 데이터)
-   ↓
-Basys3 FPGA
-</code></pre></div>
-<p><strong>① Vivado 케이블 드라이버</strong></p>
-<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># Vivado에 포함된 케이블 드라이버 설치
-cd /tools/Xilinx/Vivado/2024.2/data/xicom/cable_drivers/lin64/install_script/install_drivers
-sudo ./install_drivers
-</code></pre></div>
-<p><strong>② Digilent Adept Runtime / Utilities</strong></p>
-<p>Vivado에는 Digilent 보드용 USB 드라이버가 들어 있지 않습니다. Adept Runtime이 없으면 Hardware Manager의 <strong>Open Target</strong>이 동작하지 않고 <code>djtgcfg</code> 명령도 사용할 수 없습니다.</p>
-<ul>
-<li>Runtime: <a href="https://digilent.com/reference/software/adept/runtime-previous-versions">Digilent Adept Runtime</a> — <code>digilent.adept.runtime_*.deb</code></li>
-<li>Utilities: <a href="https://digilent.com/reference/software/adept/utilities-previous-versions">Digilent Adept Utilities</a> — <code>digilent.adept.utilities_*.deb</code></li>
-</ul>
-<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># 내려받은 .deb 패키지 설치 → 부족한 의존성 자동 보완
-cd ~/Downloads
-sudo dpkg -i digilent.adept.runtime_*.deb
-sudo apt -f install
-
-# 확인용 유틸리티(djtgcfg 포함) 설치
-sudo dpkg -i digilent.adept.utilities_*.deb
-sudo apt -f install
-
-# 설치 확인: 경로가 출력되면 정상
-which djtgcfg
+<p><strong>전체 연결 구조</strong></p>
+<p><img src="images/ch05/svg_stopwatch_count.svg" alt="스톱워치 제어와 카운트 경로 블록도" />
+<em>그림 5-1. 스톱워치 제어·카운트 경로</em></p>
+<p><img src="images/ch05/svg_stopwatch_display.svg" alt="스톱워치 FND 표시 경로 블록도" />
+<em>그림 5-2. 스톱워치 FND 표시 경로</em></p>
+<p><strong>파일 구성</strong></p>
+<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>step3_struct_stopwatch/
+├── rtl/
+│   ├── clock_divider_10ms.v
+│   ├── stopwatch_counter_4digit.v
+│   ├── start_stop_control.v
+│   ├── fnd_scan_counter.v
+│   ├── fnd_mux_4digit_dp.v
+│   ├── fnd_decoder.v
+│   └── basys3_step3_struct_stopwatch.v
+└── tb/
+    ├── tb_stopwatch_counter_4digit.v
+    └── tb_start_stop_control.v
 </code></pre></div>
 <table>
 <thead>
 <tr>
-  <th>명령 요소</th>
-  <th>의미</th>
+  <th>단계</th>
+  <th>실습</th>
+  <th>핵심</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-  <td><code>sudo</code></td>
-  <td>관리자 권한으로 실행</td>
+  <td>Step 3-1</td>
+  <td>0.01초 Tick + 스톱워치 카운터</td>
+  <td>00.00~99.99 증가</td>
 </tr>
 <tr>
-  <td><code>dpkg -i</code></td>
-  <td>Debian 패키지 설치(<code>-i</code> = install)</td>
+  <td>Step 3-2</td>
+  <td>Start / Stop 제어</td>
+  <td>실행 상태 저장</td>
 </tr>
 <tr>
-  <td><code>*.deb</code></td>
-  <td>이름이 맞는 파일 자동 선택</td>
-</tr>
-<tr>
-  <td><code>apt -f install</code></td>
-  <td>깨진 의존성 수정(<code>-f</code> = fix broken), <code>dpkg</code> 오류 뒤 실행</td>
+  <td>Step 3-3</td>
+  <td>Basys3 스톱워치 Top</td>
+  <td>모듈 연결형 설계</td>
 </tr>
 </tbody>
 </table>
-<p>Adept 구성 요소는 다음과 같이 나뉩니다.</p>
-<table>
-<thead>
-<tr>
-  <th>구성 요소</th>
-  <th>역할</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><strong>Runtime</strong></td>
-  <td>USB 드라이버, 보드 인식 담당 — 가장 중요</td>
-</tr>
-<tr>
-  <td>Utilities</td>
-  <td>데이터 전송·테스트·디버깅 도구(<code>djtgcfg</code>)</td>
-</tr>
-<tr>
-  <td>SDK</td>
-  <td>C/C++로 보드를 제어하는 API</td>
-</tr>
-<tr>
-  <td>System</td>
-  <td>구버전 GUI 도구, 현재 지원 종료</td>
-</tr>
-</tbody>
-</table>
-<p><strong>③ 사용자 권한 설정</strong></p>
-<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># 시리얼(dialout)·USB(plugdev) 장치 접근 권한 부여 후 재부팅
-sudo usermod -aG dialout $USER
-sudo usermod -aG plugdev $USER
-sudo reboot
-</code></pre></div>
-<p><strong>④ 최종 인식 확인</strong></p>
-<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># USB 장치 목록 → Digilent 보드 검색
-lsusb
-djtgcfg enum
-</code></pre></div>
-<p>예상 출력:</p>
-<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>Found 1 device(s)
-Device: Basys3
-</code></pre></div>
-<table>
-<thead>
-<tr>
-  <th>증상</th>
-  <th>원인</th>
-  <th>해결</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><code>command not found</code></td>
-  <td>Adept Runtime·Utilities 미설치</td>
-  <td>② 다시 수행</td>
-</tr>
-<tr>
-  <td><code>Found 0 device(s)</code></td>
-  <td>USB 연결 문제</td>
-  <td>통신용 케이블·다른 포트·보드 전원 확인</td>
-</tr>
-<tr>
-  <td><code>Permission denied</code></td>
-  <td>권한 부족</td>
-  <td>③ 수행 후 재부팅, 급하면 <code>sudo</code></td>
-</tr>
-</tbody>
-</table>
-<p>문제가 생기면 <code>lsusb</code> → <code>djtgcfg enum</code> → <code>groups</code> → <code>which vivado</code> → 오류 메시지 순으로 확인합니다. <strong>보드가 보이지 않으면 드라이버부터 의심</strong>하는 습관이 가장 빠른 해결책입니다.</p>
-</section><section class="section" id="s04"><h2><span class="num">04</span>작업 폴더와 VS Code</h2><p>Vivado 프로젝트에는 소스, 시뮬레이션, IP, 합성·구현 결과, 로그가 모두 쌓여 프로젝트 하나가 수 GB까지 커질 수 있습니다. 바탕화면·다운로드·문서 폴더나 USB 메모리 대신 <strong>실습 전용 폴더</strong>를 만듭니다.</p>
-<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># 실습 전용 폴더 생성 → 이동 → 현재 위치 확인
-mkdir ~/viva_work
-cd ~/viva_work
-pwd
-</code></pre></div>
-<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>viva_work/
-├── led_test/
-├── and_gate/
-├── uart_test/
-└── counter_fnd/
-</code></pre></div>
-<p><strong>VS Code 설치와 실행</strong></p>
-<p>VS Code는 <code>apt</code> 저장소를 등록해 설치하면 이후 시스템 업데이트로 함께 관리됩니다.</p>
-<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># 패키지 목록 갱신 → 저장소 등록 도구 준비
-sudo apt update
-sudo apt install -y wget gpg
-# (Microsoft 저장소 등록 후) VS Code 설치 → 버전 확인
-sudo apt install -y code
-code --version
-</code></pre></div>
-<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># 프로젝트 폴더를 만들고 VS Code로 열기
-mkdir ~/fpga_lab
-cd ~/fpga_lab
-code .
-</code></pre></div>
-<table>
-<thead>
-<tr>
-  <th>실행 방식</th>
-  <th>명령</th>
-  <th>설명</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>현재 폴더 열기</td>
-  <td><code>code .</code></td>
-  <td>가장 많이 사용</td>
-</tr>
-<tr>
-  <td>특정 폴더 열기</td>
-  <td><code>code ~/fpga_project</code></td>
-  <td>프로젝트 폴더 직접 열기</td>
-</tr>
-<tr>
-  <td>특정 파일 열기</td>
-  <td><code>code top.v</code></td>
-  <td>파일만 열기</td>
-</tr>
-</tbody>
-</table>
-<p><strong>권장 설정과 확장</strong></p>
-<table>
-<thead>
-<tr>
-  <th>설정</th>
-  <th>권장값</th>
-  <th>이유</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>Font Size</td>
-  <td>15~18</td>
-  <td>화면 가독성</td>
-</tr>
-<tr>
-  <td>Auto Save</td>
-  <td><code>afterDelay</code></td>
-  <td>저장 누락 방지</td>
-</tr>
-<tr>
-  <td>Tab Size</td>
-  <td>4</td>
-  <td>Verilog 가독성</td>
-</tr>
-<tr>
-  <td>Encoding</td>
-  <td>UTF-8</td>
-  <td>한글 주석 깨짐 방지</td>
-</tr>
-<tr>
-  <td>Word Wrap</td>
-  <td>ON</td>
-  <td>긴 코드 보기</td>
-</tr>
-</tbody>
-</table>
-<table>
-<thead>
-<tr>
-  <th>확장</th>
-  <th>용도</th>
-  <th>권장</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>Verilog HDL / Verilog-HDL/SystemVerilog</td>
-  <td>문법 강조·편집 지원</td>
-  <td>필수</td>
-</tr>
-<tr>
-  <td>Tcl</td>
-  <td>Vivado Tcl 스크립트 편집</td>
-  <td>추천</td>
-</tr>
-<tr>
-  <td>GitLens</td>
-  <td>Git 이력 확인</td>
-  <td>추천</td>
-</tr>
-</tbody>
-</table>
-<table>
-<thead>
-<tr>
-  <th>단축키</th>
-  <th>기능</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><code>Ctrl + Shift + P</code></td>
-  <td>명령 팔레트</td>
-</tr>
-<tr>
-  <td><code>Ctrl + P</code></td>
-  <td>파일 빠르게 열기</td>
-</tr>
-<tr>
-  <td><code>Ctrl + ` </code></td>
-  <td>하단 터미널</td>
-</tr>
-<tr>
-  <td><code>Ctrl + Shift + F</code></td>
-  <td>프로젝트 전체 검색</td>
-</tr>
-<tr>
-  <td><code>Ctrl + /</code></td>
-  <td>주석 처리</td>
-</tr>
-<tr>
-  <td><code>Alt + ↑ / ↓</code></td>
-  <td>줄 이동</td>
-</tr>
-</tbody>
-</table>
-<p><strong>권장 프로젝트 구조</strong></p>
-<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>fpga_lab/
-├── rtl/            # 하드웨어 설계 코드 (top.v)
-├── tb/             # 테스트벤치 (top_tb.v)
-├── constraints/    # 핀·클록 제약 (basys3.xdc)
-├── sim/            # 시뮬레이션 결과
-├── docs/           # 설명 자료
-└── vivado_project/ # Vivado 프로젝트 파일
-</code></pre></div>
-<p>경로와 파일 이름에는 <strong>공백과 한글을 쓰지 않습니다</strong>. 파일명은 모듈명과 같게(<code>led_shift_fsm.v</code> ↔ <code>module led_shift_fsm</code>), 테스트벤치는 <code>_tb</code>를 붙입니다.</p>
-</section><section class="section" id="s05"><h2><span class="num">05</span>VS Code와 Vivado 역할 분리</h2><table>
-<thead>
-<tr>
-  <th>작업</th>
-  <th style="text-align:center">VS Code</th>
-  <th style="text-align:center">Vivado</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>Verilog·XDC·Tcl 작성, 대량 수정·검색</td>
-  <td style="text-align:center">✅</td>
-  <td style="text-align:center">가능하지만 불편</td>
-</tr>
-<tr>
-  <td>시뮬레이션</td>
-  <td style="text-align:center">제한적</td>
-  <td style="text-align:center">✅</td>
-</tr>
-<tr>
-  <td>RTL Analysis · Synthesis · Implementation</td>
-  <td style="text-align:center">❌</td>
-  <td style="text-align:center">✅</td>
-</tr>
-<tr>
-  <td>Bitstream 생성 · FPGA 다운로드</td>
-  <td style="text-align:center">❌</td>
-  <td style="text-align:center">✅</td>
-</tr>
-</tbody>
-</table>
-<p><strong>권장 작업 순서</strong></p>
-<ol>
-<li>터미널에서 프로젝트 폴더 생성</li>
-<li>VS Code에서 Verilog(<code>rtl/</code>)·XDC(<code>constraints/</code>) 작성</li>
-<li>Vivado에서 프로젝트 생성 → <strong>Add Sources</strong>로 RTL·XDC 등록</li>
-<li>Run Simulation → Run Synthesis → Open Elaborated Design</li>
-<li>Run Implementation → Generate Bitstream → Open Hardware Manager</li>
-</ol>
-<table>
-<thead>
-<tr>
-  <th>상황</th>
-  <th>Vivado 반영</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>등록된 파일을 VS Code에서 수정·저장</td>
-  <td>자동 반영</td>
-</tr>
-<tr>
-  <td>VS Code에서 새 파일만 생성</td>
-  <td>반영 안 됨 → Add Sources 필요</td>
-</tr>
-<tr>
-  <td>파일 이름 변경·이동</td>
-  <td>연결이 끊길 수 있음 → Sources에서 다시 연결</td>
-</tr>
-<tr>
-  <td>XDC 수정</td>
-  <td>저장 후 Synthesis·Implementation 재실행</td>
-</tr>
-</tbody>
-</table>
-<blockquote>
-<p><strong>기억할 점:</strong> VS Code는 코드를 편하게 쓰는 도구, Vivado는 실제로 FPGA 회로를 만드는 도구입니다. <strong>저장해야 Vivado가 읽고, 새 파일은 Vivado에 알려 줘야 합니다.</strong></p>
-</blockquote>
-</section><section class="section" id="s06"><h2><span class="num">06</span>Basys3 하드웨어 개요</h2><p>Basys3는 AMD Artix-7 <code>XC7A35T-1CPG236C</code>를 탑재한 입문용 디지털 회로 개발 보드입니다. 회로도와 상세 사양은 <a href="https://digilent.com/reference/programmable-logic/basys-3/reference-manual">Digilent Basys3 참조 설명서</a>에서 확인합니다.</p>
-<table>
-<thead>
-<tr>
-  <th>FPGA 자원</th>
-  <th>사양</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>로직 셀</td>
-  <td>33,280개 (슬라이스 5,200개, 슬라이스당 6입력 LUT 4개 + 플립플롭 8개)</td>
-</tr>
-<tr>
-  <td>블록 RAM</td>
-  <td>1,800Kbit</td>
-</tr>
-<tr>
-  <td>클록 관리 타일</td>
-  <td>5개 (각각 PLL 포함)</td>
-</tr>
-<tr>
-  <td>DSP 슬라이스</td>
-  <td>90개</td>
-</tr>
-<tr>
-  <td>기타</td>
-  <td>온칩 ADC(XADC)</td>
-</tr>
-</tbody>
-</table>
-<table>
-<thead>
-<tr>
-  <th>보드 주변 장치</th>
-  <th>수량·내용</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>슬라이드 스위치</td>
-  <td>16개 (위치에 따라 HIGH/LOW 유지)</td>
-</tr>
-<tr>
-  <td>푸시 버튼</td>
-  <td>5개 (누를 때만 HIGH)</td>
-</tr>
-<tr>
-  <td>LED</td>
-  <td>16개 (FPGA 핀이 HIGH일 때 켜짐)</td>
-</tr>
-<tr>
-  <td>7세그먼트</td>
-  <td>4자리, 공통 애노드</td>
-</tr>
-<tr>
-  <td>기타</td>
-  <td>Pmod 3개 + XADC용 Pmod, 12비트 VGA, USB-UART, USB HID 호스트, 32Mbit Quad SPI 플래시</td>
-</tr>
-</tbody>
-</table>
-<p><strong>전원과 구성(Configuration)</strong></p>
-<ul>
-<li>전원은 USB-JTAG 포트(J4) 또는 외부 5V 전원(J6)에서 공급하고, 점퍼 JP2로 선택합니다. 전원 스위치는 SW16, 전원 상태 LED는 LD20입니다.</li>
-<li>FPGA는 전원이 들어온 뒤 <strong>비트스트림(<code>.bit</code>)</strong> 으로 구성되어야 동작합니다. 구성 데이터는 FPGA 내부 SRAM에 저장되므로 전원을 끄면 사라집니다.</li>
-</ul>
-<table>
-<thead>
-<tr>
-  <th>구성 방법</th>
-  <th>특징</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>JTAG (J4, PROG)</td>
-  <td>Vivado Hardware Manager로 즉시 다운로드, 약 5초</td>
-</tr>
-<tr>
-  <td>Quad SPI 플래시</td>
-  <td>전원을 켤 때 자동 구성, 기록 1~2분</td>
-</tr>
-<tr>
-  <td>USB 메모리 (J2)</td>
-  <td>FAT32 루트에 <code>.bit</code> 하나, JP1을 USB로 설정</td>
-</tr>
-</tbody>
-</table>
-<p>프로그래밍이 끝나면 <strong>DONE</strong> LED가 켜집니다.</p>
-<p><strong>클록과 7세그먼트</strong></p>
-<ul>
-<li>100MHz 발진기가 <strong>W5</strong> 핀에 연결되어 있습니다.</li>
-<li>7세그먼트는 4자리가 세그먼트 신호(CA~CG, DP)를 공유하고 자리 선택(AN0~AN3)으로 구분하는 <strong>다중화(Multiplexing)</strong> 구조입니다. AN과 세그먼트 모두 <strong>LOW일 때 켜집니다(Active Low).</strong></li>
-<li>네 자리를 1~16ms 주기(약 60Hz~1kHz)로 번갈아 켜면 사람 눈에는 모두 켜진 것처럼 보입니다. 약 45Hz 이하로 느려지면 깜빡임이 보입니다.</li>
-</ul>
-</section><section class="section" id="s07"><h2><span class="num">07</span>XDC 핀 제약 파일</h2><p>XDC(Xilinx Design Constraints)는 <strong>Verilog 포트를 보드의 실제 핀에 연결하고 클록 같은 동작 조건을 정의하는 파일</strong>입니다. HDL 코드는 FPGA 내부 논리만 정의하므로 외부 연결은 XDC가 맡습니다. 과거의 UCF 형식을 대신하며, Vivado는 Tcl 문법 기반의 XDC만 사용합니다.</p>
-<table>
-<thead>
-<tr>
-  <th>역할</th>
-  <th>예</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>핀 할당 (Pin Assignment)</td>
-  <td>스위치 → FPGA 입력 핀, LED → FPGA 출력 핀</td>
-</tr>
-<tr>
-  <td>타이밍 제약 (Timing Constraint)</td>
-  <td>클록 주파수 정의, Setup/Hold 조건 만족 유도</td>
-</tr>
-</tbody>
-</table>
-<p>파일명: <code>basys3.xdc</code></p>
-<div class="codeblock"><div class="codebar"><span>tcl</span></div><pre><code></code></pre></div>
-</section><section class="section" id="s08"><h2><span class="num">08</span>SW0 입력</h2><p>set_property PACKAGE_PIN V17 [get_ports {sw[0]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {sw[0]}]</p>
-</section><section class="section" id="s09"><h2><span class="num">09</span>LED0 출력</h2><p>set_property PACKAGE_PIN U16 [get_ports {led[0]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {led[0]}]</p>
-</section><section class="section" id="s10"><h2><span class="num">10</span>100MHz 시스템 클록 (주기 10ns)</h2><p>set_property PACKAGE_PIN W5 [get_ports clk]
-set_property IOSTANDARD LVCMOS33 [get_ports clk]
-create_clock -period 10.000 -name sys_clk [get_ports clk]</p>
-<div class="codeblock"><div class="codebar"><span>TEXT</span></div><pre><code>
-| 키워드 | 의미 |
-|---|---|
-| `PACKAGE_PIN` | FPGA 물리 핀 위치 |
-| `IOSTANDARD LVCMOS33` | 3.3V CMOS 전압 규격 |
-| `get_ports` | Verilog 포트 이름 |
-| `create_clock -period 10.000` | 10ns 주기 = 100MHz |
-
-**Basys3 자주 쓰는 핀**
-
-| 장치 | 핀 |
-|---|---|
-| CLK 100MHz | W5 |
-| SW0~SW7 | V17, V16, W16, W17, W15, V15, W14, W13 |
-| SW8~SW15 | V2, T3, T2, R3, W2, U1, T1, R2 |
-| LED0~LED7 | U16, E19, U19, V19, W18, U15, U14, V14 |
-| LED8~LED15 | V13, V3, W3, U3, P3, N3, P1, L1 |
-| BTNC / BTNU / BTNL / BTNR / BTND | U18 / T18 / W19 / T17 / U17 |
-| 세그먼트 CA~CG, DP | W7, W6, U8, V8, U5, V5, U7, V7 |
-| AN0~AN3 | U2, U4, V4, W4 |
-
-스위치·LED·7세그먼트처럼 보드에 고정된 장치는 핀을 임의로 바꿀 수 없습니다. 항상 Digilent **Master XDC**를 기준으로 필요한 줄의 주석을 풀어 사용합니다.
-
-| 자주 나는 오류 | 결과 |
-|---|---|
-| 핀 지정 누락 | Implementation 실패 (Unconstrained Port) |
-| 핀 중복 | DRC 오류 |
-| IO 규격 불일치 | 보드 손상 가능 |
-</code></pre></div>
-</section><section class="section" id="s11"><h2><span class="num">11</span>첫 실습 SW0으로 LED0 제어</h2><p>스위치를 올리면 LED가 켜지고, 내리면 꺼지는 가장 작은 회로입니다.</p>
-<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>SW0 입력 → FPGA 내부 논리 → LED0 출력
-SW0 = 1 → LED0 = 1
-SW0 = 0 → LED0 = 0
-</code></pre></div>
-<p><strong>① 프로젝트 생성</strong></p>
-<ol>
-<li><code>vivado</code> 실행 → <strong>Create Project</strong></li>
-<li>Project Name <code>sw_led_project</code>, 위치는 <code>~/viva_work</code></li>
-<li><strong>RTL Project</strong> 선택</li>
-<li>Boards 탭에서 <strong>Basys3</strong> 선택 (또는 Parts에서 <code>xc7a35tcpg236-1</code>)</li>
-</ol>
-<p><strong>② Verilog 작성</strong> — Add Sources → Add or Create Design Sources</p>
-<p>파일명: <code>sw_led.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module sw_led(
-    input  wire sw0,    // 스위치 입력
-    output wire led0    // LED 출력
+</section><section class="section" id="s02"><h2><span class="num">02</span>스톱워치 Tick과 카운터</h2><p><strong>RTL 1 · 0.01초 Tick</strong> — 100MHz에서 0.01초는 1,000,000클록(비교값 <strong>999,999</strong>)입니다. <code>enable</code>이 0이면 기준 카운트를 0으로 되돌려, 다시 시작할 때 0.01초 단위가 깨끗하게 맞춰지도록 합니다.</p>
+<p>파일명: <code>clock_divider_10ms.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module clock_divider_10ms(
+    input      clk,     // 100MHz 기준 Clock
+    input      reset,   // 동기 Reset
+    input      enable,  // Tick 생성 허용
+    output reg tick     // 0.01초마다 1 Clock 동안 1
 );
 
-    // 입력을 그대로 출력으로 연결
-    assign led0 = sw0;
+    reg [19:0] count_div;   // 1,000,000 Clock Counter
+
+    always @(posedge clk) begin
+        if (reset) begin
+            count_div &lt;= 20'd0;
+            tick      &lt;= 1'b0;
+        end
+        else begin
+            tick &lt;= 1'b0;                       // Tick 기본값은 0
+            if (enable) begin                   // Enable 상태에서만 Count
+                if (count_div == 20'd999_999) begin
+                    count_div &lt;= 20'd0;         // 1,000,000 Clock 도달
+                    tick      &lt;= 1'b1;          // 1 Clock 폭 Tick
+                end
+                else begin
+                    count_div &lt;= count_div + 1'b1;
+                end
+            end
+            else begin
+                count_div &lt;= 20'd0;             // 정지 시 기준 Count 초기화
+            end
+        end
+    end
+
+endmodule
+</code></pre></div>
+<p><strong>RTL 2 · 스톱워치 카운터</strong> — 4장의 중첩 <code>if</code> 대신 <strong>현재 값으로 Carry 조건을 미리 계산</strong>해 각 자리를 독립적으로 갱신합니다. 자리 수가 늘어도 구조가 단순하게 유지됩니다.</p>
+<p>파일명: <code>stopwatch_counter_4digit.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module stopwatch_counter_4digit(
+    input            clk,     // 기준 Clock
+    input            reset,   // 동기 Reset
+    input            enable,  // Count 증가 Enable
+    output reg [3:0] digit0,  // 0.01초 자리
+    output reg [3:0] digit1,  // 0.1초 자리
+    output reg [3:0] digit2,  // 1초 자리
+    output reg [3:0] digit3   // 10초 자리
+);
+
+    wire carry0;   // digit0 자리 올림 조건
+    wire carry1;   // digit1 자리 올림 조건
+    wire carry2;   // digit2 자리 올림 조건
+
+    // 현재 Digit 값 기준 Carry 조건 생성
+    assign carry0 = (digit0 == 4'd9);
+    assign carry1 = (digit0 == 4'd9) &amp;&amp; (digit1 == 4'd9);
+    assign carry2 = (digit0 == 4'd9) &amp;&amp; (digit1 == 4'd9) &amp;&amp; (digit2 == 4'd9);
+
+    always @(posedge clk) begin
+        if (reset) begin
+            digit0 &lt;= 4'd0;
+            digit1 &lt;= 4'd0;
+            digit2 &lt;= 4'd0;
+            digit3 &lt;= 4'd0;
+        end
+        else begin
+            if (enable) begin   // 0.01초 Tick에서만 증가
+                digit0 &lt;= carry0 ? 4'd0 : digit0 + 1'b1;
+                if (carry0)
+                    digit1 &lt;= (digit1 == 4'd9) ? 4'd0 : digit1 + 1'b1;
+                if (carry1)
+                    digit2 &lt;= (digit2 == 4'd9) ? 4'd0 : digit2 + 1'b1;
+                if (carry2)
+                    digit3 &lt;= (digit3 == 4'd9) ? 4'd0 : digit3 + 1'b1;
+            end
+        end
+    end
+
+endmodule
+</code></pre></div>
+<p>파일명: <code>tb_stopwatch_counter_4digit.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
+module tb_stopwatch_counter_4digit;
+
+    reg        clk;      // Testbench Clock
+    reg        reset;    // Reset 입력
+    reg        tick;     // Counter Enable 입력
+    wire [3:0] digit0;   // 0.01초 자리
+    wire [3:0] digit1;   // 0.1초 자리
+    wire [3:0] digit2;   // 1초 자리
+    wire [3:0] digit3;   // 10초 자리
+
+    stopwatch_counter_4digit dut(
+        .clk(clk),
+        .reset(reset),
+        .enable(tick),
+        .digit0(digit0),
+        .digit1(digit1),
+        .digit2(digit2),
+        .digit3(digit3)
+    );
+
+    // 100MHz Clock 생성
+    initial begin
+        clk = 1'b0;
+        forever #5 clk = ~clk;
+    end
+
+    // 1 Clock 폭 Tick 생성 Task
+    task make_tick;
+        begin
+            tick = 1'b1; #10;
+            tick = 1'b0; #20;
+        end
+    endtask
+
+    initial begin
+        reset = 1'b1; tick = 1'b0; #20;
+        reset = 1'b0;
+        repeat (125) begin      // 00.00 → 01.25
+            make_tick;
+        end
+        $finish;
+    end
+
+endmodule
+</code></pre></div>
+<p>125번의 Tick 후 표시값은 <code>01.25</code>(digit3=0, digit2=1, digit1=2, digit0=5)가 되어야 합니다.</p>
+</section><section class="section" id="s03"><h2><span class="num">03</span>스톱워치 제어와 FND 모듈</h2><p><strong>RTL 3 · Start/Stop 제어</strong> — 버튼을 누른 순간의 명령을 <code>running</code> 상태로 기억합니다. Start가 Stop보다 우선합니다.</p>
+<p>파일명: <code>start_stop_control.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module start_stop_control(
+    input      clk,      // 기준 Clock
+    input      reset,    // 동기 Reset
+    input      start,    // Start 입력
+    input      stop,     // Stop 입력
+    output reg running   // 실행 상태
+);
+
+    always @(posedge clk) begin
+        if (reset) begin
+            running &lt;= 1'b0;        // Reset 시 정지
+        end
+        else begin
+            if (start)
+                running &lt;= 1'b1;    // Start 입력 시 실행 상태 저장
+            else if (stop)
+                running &lt;= 1'b0;    // Stop 입력 시 정지 상태 저장
+        end
+    end
+
+endmodule
+</code></pre></div>
+<p>파일명: <code>tb_start_stop_control.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
+module tb_start_stop_control;
+
+    reg  clk, reset, start, stop;
+    wire running;
+
+    start_stop_control dut(
+        .clk(clk), .reset(reset), .start(start), .stop(stop), .running(running)
+    );
+
+    initial begin
+        clk = 1'b0;
+        forever #5 clk = ~clk;
+    end
+
+    initial begin
+        reset = 1'b1; start = 1'b0; stop = 1'b0; #20;
+        reset = 1'b0;
+        start = 1'b1; #10; start = 1'b0; #100;   // running = 1
+        stop  = 1'b1; #10; stop  = 1'b0; #100;   // running = 0
+        start = 1'b1; #10; start = 1'b0; #50;    // running = 1
+        reset = 1'b1; #20;                       // running = 0
+        $finish;
+    end
+
+endmodule
+</code></pre></div>
+<p><strong>RTL 4 · FND 스캔 카운터</strong></p>
+<p>파일명: <code>fnd_scan_counter.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module fnd_scan_counter(
+    input            clk,        // 기준 Clock
+    input            reset,      // 동기 Reset
+    output reg [1:0] digit_sel   // 현재 선택 Digit
+);
+
+    reg [15:0] scan_div;   // FND Scan 속도 생성 Counter
+
+    always @(posedge clk) begin
+        if (reset) begin
+            scan_div  &lt;= 16'd0;
+            digit_sel &lt;= 2'd0;
+        end
+        else begin
+            scan_div  &lt;= scan_div + 1'b1;     // Scan Counter 증가
+            digit_sel &lt;= scan_div[15:14];     // 4개 Digit 순환 선택
+        end
+    end
+
+endmodule
+</code></pre></div>
+<p><strong>RTL 5 · FND MUX + DP</strong> — 1초 자리(digit2)를 표시하는 순간에만 DP를 켜서 <code>SS.HH</code>의 구분점을 만듭니다.</p>
+<p>파일명: <code>fnd_mux_4digit_dp.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module fnd_mux_4digit_dp(
+    input      [3:0] digit0,         // 0.01초 자리
+    input      [3:0] digit1,         // 0.1초 자리
+    input      [3:0] digit2,         // 1초 자리
+    input      [3:0] digit3,         // 10초 자리
+    input      [1:0] digit_sel,      // 현재 선택 Digit
+    output reg [3:0] current_digit,  // Decoder로 보낼 현재 Digit
+    output reg [3:0] an,             // FND Digit 선택, Active-Low
+    output reg       dp              // Decimal Point, Active-Low
+);
+
+    always @(*) begin
+        current_digit = 4'd0;   // 기본 표시값
+        an            = 4'b1111;// 기본은 모든 Digit OFF
+        dp            = 1'b1;   // 기본은 DP OFF
+
+        case (digit_sel)
+            2'd0: begin current_digit = digit0; an = 4'b1110; dp = 1'b1; end
+            2'd1: begin current_digit = digit1; an = 4'b1101; dp = 1'b1; end
+            2'd2: begin current_digit = digit2; an = 4'b1011; dp = 1'b0; end  // DP ON
+            2'd3: begin current_digit = digit3; an = 4'b0111; dp = 1'b1; end
+        endcase
+    end
+
+endmodule
+</code></pre></div>
+<p><strong>RTL 6 · FND 디코더</strong></p>
+<p>파일명: <code>fnd_decoder.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module fnd_decoder(
+    input      [3:0] bcd,   // 표시할 BCD 값
+    output reg [6:0] seg    // Segment 출력, Active-Low
+);
+
+    always @(*) begin
+        case (bcd)
+            4'd0:    seg = 7'b1000000;
+            4'd1:    seg = 7'b1111001;
+            4'd2:    seg = 7'b0100100;
+            4'd3:    seg = 7'b0110000;
+            4'd4:    seg = 7'b0011001;
+            4'd5:    seg = 7'b0010010;
+            4'd6:    seg = 7'b0000010;
+            4'd7:    seg = 7'b1111000;
+            4'd8:    seg = 7'b0000000;
+            4'd9:    seg = 7'b0010000;
+            default: seg = 7'b1111111;   // 예외값은 표시하지 않음
+        endcase
+    end
+
+endmodule
+</code></pre></div>
+</section><section class="section" id="s04"><h2><span class="num">04</span>Basys3 스톱워치 Top</h2><table>
+<thead>
+<tr>
+  <th>포트</th>
+  <th>장치</th>
+  <th>역할</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>clk</code></td>
+  <td>W5</td>
+  <td>100MHz 클록</td>
+</tr>
+<tr>
+  <td><code>btnC</code></td>
+  <td>가운데 버튼</td>
+  <td>Start</td>
+</tr>
+<tr>
+  <td><code>btnU</code></td>
+  <td>위 버튼</td>
+  <td>Stop</td>
+</tr>
+<tr>
+  <td><code>btnD</code></td>
+  <td>아래 버튼</td>
+  <td>Reset</td>
+</tr>
+<tr>
+  <td><code>sw[0]</code></td>
+  <td>SW0</td>
+  <td>전체 Enable</td>
+</tr>
+<tr>
+  <td><code>led[0]</code></td>
+  <td>LED0</td>
+  <td><code>running</code> 상태</td>
+</tr>
+<tr>
+  <td><code>led[4:1]</code></td>
+  <td>LED1~4</td>
+  <td>0.01초 자리</td>
+</tr>
+<tr>
+  <td><code>seg</code>, <code>an</code>, <code>dp</code></td>
+  <td>FND</td>
+  <td><code>SS.HH</code> 표시</td>
+</tr>
+</tbody>
+</table>
+<p>파일명: <code>basys3_step3_struct_stopwatch.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module basys3_step3_struct_stopwatch(
+    input         clk,    // Basys3 100MHz Clock
+    input         btnC,   // Start 버튼
+    input         btnU,   // Stop 버튼
+    input         btnD,   // Reset 버튼
+    input  [15:0] sw,     // sw[0]: 전체 Enable
+    output [15:0] led,    // 상태 확인 LED
+    output [6:0]  seg,    // Segment 출력, Active-Low
+    output [3:0]  an,     // Digit 선택 출력, Active-Low
+    output        dp      // Decimal Point, Active-Low
+);
+
+    wire       tick_0p01s;     // 0.01초 Tick
+    wire       running;        // 실행 상태
+    wire       count_enable;   // Counter 증가 Enable
+    wire [3:0] digit0;         // 0.01초 자리
+    wire [3:0] digit1;         // 0.1초 자리
+    wire [3:0] digit2;         // 1초 자리
+    wire [3:0] digit3;         // 10초 자리
+    wire [1:0] digit_sel;      // FND 선택 Digit
+    wire [3:0] current_digit;  // 현재 표시 Digit
+
+    // Top 내부 제어 신호
+    assign count_enable = sw[0] &amp;&amp; running &amp;&amp; tick_0p01s;
+
+    // LED 확인 신호
+    assign led[0]    = running;
+    assign led[4:1]  = digit0;
+    assign led[15:5] = 11'd0;
+
+    // 0.01초 Tick 생성
+    clock_divider_10ms u_tick(
+        .clk(clk),
+        .reset(btnD),
+        .enable(sw[0] &amp;&amp; running),
+        .tick(tick_0p01s)
+    );
+
+    // Start / Stop 상태 제어
+    start_stop_control u_control(
+        .clk(clk),
+        .reset(btnD),
+        .start(btnC),
+        .stop(btnU),
+        .running(running)
+    );
+
+    // Stopwatch Counter
+    stopwatch_counter_4digit u_counter(
+        .clk(clk),
+        .reset(btnD),
+        .enable(count_enable),
+        .digit0(digit0),
+        .digit1(digit1),
+        .digit2(digit2),
+        .digit3(digit3)
+    );
+
+    // FND Scan Counter
+    fnd_scan_counter u_scan(
+        .clk(clk),
+        .reset(btnD),
+        .digit_sel(digit_sel)
+    );
+
+    // FND Digit 선택 및 DP 제어
+    fnd_mux_4digit_dp u_mux(
+        .digit0(digit0),
+        .digit1(digit1),
+        .digit2(digit2),
+        .digit3(digit3),
+        .digit_sel(digit_sel),
+        .current_digit(current_digit),
+        .an(an),
+        .dp(dp)
+    );
+
+    // FND Segment Decoder
+    fnd_decoder u_decoder(
+        .bcd(current_digit),
+        .seg(seg)
+    );
+
+endmodule
+</code></pre></div>
+<p><strong>XDC(버튼 부분)</strong></p>
+<div class="codeblock"><div class="codebar"><span>tcl</span></div><pre><code>set_property -dict { PACKAGE_PIN U18 IOSTANDARD LVCMOS33 } [get_ports btnC]
+set_property -dict { PACKAGE_PIN T18 IOSTANDARD LVCMOS33 } [get_ports btnU]
+set_property -dict { PACKAGE_PIN U17 IOSTANDARD LVCMOS33 } [get_ports btnD]
+# clk(W5 + create_clock), sw, led, seg, an, dp는 Master XDC의 해당 줄 주석 해제
+</code></pre></div>
+<table>
+<thead>
+<tr>
+  <th>확인 항목</th>
+  <th>기대 동작</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>tick_0p01s</code></td>
+  <td>0.01초마다 1클록 폭</td>
+</tr>
+<tr>
+  <td><code>running</code></td>
+  <td>Start 후 1, Stop 후 0</td>
+</tr>
+<tr>
+  <td><code>count_enable</code></td>
+  <td><code>sw[0] &amp;&amp; running &amp;&amp; tick_0p01s</code></td>
+</tr>
+<tr>
+  <td>btnC / btnU / btnD</td>
+  <td>Start / Stop / Reset</td>
+</tr>
+<tr>
+  <td><code>led[0]</code></td>
+  <td>실행 중 켜짐</td>
+</tr>
+<tr>
+  <td>FND</td>
+  <td><code>SS.HH</code>, 초와 0.1초 사이 DP</td>
+</tr>
+</tbody>
+</table>
+</section><section class="section" id="s05"><h2><span class="num">05</span>24시간 시계 구조</h2><p><strong>표시 기준</strong> — 1시 자리 뒤의 DP가 1Hz·Duty 50%로 깜빡이며 시와 분을 구분합니다.</p>
+<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>digit3  digit2  .  digit1  digit0
+ 10시    1시   DP   10분    1분
+</code></pre></div>
+<p><strong>전체 연결 구조</strong></p>
+<p><img src="images/ch05/svg_clock_count.svg" alt="24시간 시계 시간 카운트 경로 블록도" />
+<em>그림 5-3. 24시간 시계 시간 카운트 경로</em></p>
+<p><img src="images/ch05/svg_clock_display.svg" alt="24시간 시계 FND 표시 경로 블록도" />
+<em>그림 5-4. 24시간 시계 FND 표시 경로 — <code>dp = (digit_sel == 2'd2) ? dp_state : 1'b1</code></em></p>
+<p><strong>파일 구성</strong></p>
+<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>step4_hhmm_clock/
+├── rtl/
+│   ├── clock_divider_1s.v
+│   ├── second_counter_60.v
+│   ├── clock_counter_hhmm.v
+│   ├── dp_blink_1hz.v
+│   ├── fnd_scan_counter.v
+│   ├── fnd_mux_4digit.v
+│   ├── fnd_decoder.v
+│   └── basys3_hhmm_clock_top.v
+└── tb/
+    ├── tb_second_counter_60.v
+    ├── tb_clock_counter_hhmm.v
+    └── tb_dp_blink_1hz.v
+</code></pre></div>
+</section><section class="section" id="s06"><h2><span class="num">06</span>시계 Tick과 시간 카운터</h2><p><strong>RTL 1 · 1초 Tick</strong> — 100MHz × 1초 = 100,000,000클록(비교값 <strong>99,999,999</strong>, 27비트)</p>
+<p>파일명: <code>clock_divider_1s.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module clock_divider_1s(
+    input      clk,      // 100MHz 기준 Clock
+    input      reset,    // 동기 Reset
+    input      enable,   // Tick 생성 허용
+    output reg tick_1s   // 1초마다 1 Clock 동안 1
+);
+
+    reg [26:0] count_div;   // 100,000,000 Clock Count용
+
+    always @(posedge clk) begin
+        if (reset) begin
+            count_div &lt;= 27'd0;
+            tick_1s   &lt;= 1'b0;
+        end
+        else begin
+            tick_1s &lt;= 1'b0;
+            if (enable) begin
+                if (count_div == 27'd99_999_999) begin
+                    count_div &lt;= 27'd0;     // 1초 도달
+                    tick_1s   &lt;= 1'b1;      // 1 Clock 폭 Tick
+                end
+                else begin
+                    count_div &lt;= count_div + 1'b1;
+                end
+            end
+            else begin
+                count_div &lt;= 27'd0;         // 정지 시 Count 초기화
+            end
+        end
+    end
+
+endmodule
+</code></pre></div>
+<p><strong>RTL 2 · 60초 카운터</strong> — 1초 Tick을 60번 세어 1분 Tick을 만듭니다.</p>
+<p>파일명: <code>second_counter_60.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module second_counter_60(
+    input            clk,        // 기준 Clock
+    input            reset,      // 동기 Reset
+    input            tick_1s,    // 1초 Tick Enable
+    output reg       tick_1min,  // 60초마다 1 Clock 동안 1
+    output reg [5:0] sec_count   // 내부 초 Count, 0~59
+);
+
+    always @(posedge clk) begin
+        if (reset) begin
+            sec_count &lt;= 6'd0;
+            tick_1min &lt;= 1'b0;
+        end
+        else begin
+            tick_1min &lt;= 1'b0;
+            if (tick_1s) begin
+                if (sec_count == 6'd59) begin
+                    sec_count &lt;= 6'd0;      // 59초 다음 0초
+                    tick_1min &lt;= 1'b1;      // 1분 Tick 발생
+                end
+                else begin
+                    sec_count &lt;= sec_count + 1'b1;
+                end
+            end
+        end
+    end
+
+endmodule
+</code></pre></div>
+<p><strong>RTL 3 · HH:MM 카운터</strong> — 분은 00~59, 시는 00~23입니다. <strong>23:59 다음 00:00</strong>을 별도 조건(<code>last_time</code>)으로 처리하는 것이 핵심입니다.</p>
+<table>
+<thead>
+<tr>
+  <th>조건</th>
+  <th>동작</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>min_ones == 9</code></td>
+  <td>1분 자리 0, 10분 자리 증가</td>
+</tr>
+<tr>
+  <td><code>min_tens == 5 &amp;&amp; min_ones == 9</code></td>
+  <td>분 00, 시 증가</td>
+</tr>
+<tr>
+  <td><code>hour_ones == 9</code> 이면서 시 증가</td>
+  <td>09:59 → 10:00, 19:59 → 20:00</td>
+</tr>
+<tr>
+  <td>23:59</td>
+  <td>00:00</td>
+</tr>
+</tbody>
+</table>
+<p>파일명: <code>clock_counter_hhmm.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module clock_counter_hhmm(
+    input            clk,        // 기준 Clock
+    input            reset,      // 동기 Reset
+    input            tick_1min,  // 1분 Tick Enable
+    output reg [3:0] min_ones,   // 1분 자리, 0~9
+    output reg [3:0] min_tens,   // 10분 자리, 0~5
+    output reg [3:0] hour_ones,  // 1시간 자리
+    output reg [3:0] hour_tens   // 10시간 자리, 0~2
+);
+
+    wire carry_min_ones;   // 1분 자리 Carry 조건
+    wire carry_min_tens;   // 59분 Carry 조건
+    wire last_time;        // 23:59 조건
+
+    // 현재 시간값 기준 Carry 조건 생성
+    assign carry_min_ones = (min_ones == 4'd9);
+    assign carry_min_tens = (min_ones == 4'd9) &amp;&amp; (min_tens == 4'd5);
+    assign last_time      = (hour_tens == 4'd2) &amp;&amp; (hour_ones == 4'd3) &amp;&amp;
+                            (min_tens  == 4'd5) &amp;&amp; (min_ones  == 4'd9);
+
+    always @(posedge clk) begin
+        if (reset) begin
+            min_ones  &lt;= 4'd0;
+            min_tens  &lt;= 4'd0;
+            hour_ones &lt;= 4'd0;
+            hour_tens &lt;= 4'd0;
+        end
+        else begin
+            if (tick_1min) begin
+                if (last_time) begin            // 23:59 다음 00:00
+                    min_ones  &lt;= 4'd0;
+                    min_tens  &lt;= 4'd0;
+                    hour_ones &lt;= 4'd0;
+                    hour_tens &lt;= 4'd0;
+                end
+                else begin
+                    min_ones &lt;= carry_min_ones ? 4'd0 : min_ones + 1'b1;
+
+                    if (carry_min_ones)
+                        min_tens &lt;= (min_tens == 4'd5) ? 4'd0 : min_tens + 1'b1;
+
+                    if (carry_min_tens) begin
+                        if (hour_ones == 4'd9) begin
+                            hour_ones &lt;= 4'd0;              // 09:59, 19:59 다음
+                            hour_tens &lt;= hour_tens + 1'b1;
+                        end
+                        else begin
+                            hour_ones &lt;= hour_ones + 1'b1;  // 일반 시간 증가
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+endmodule
+</code></pre></div>
+<p>파일명: <code>tb_second_counter_60.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
+module tb_second_counter_60;
+
+    reg        clk, reset, tick_1s;
+    wire       tick_1min;
+    wire [5:0] sec_count;
+
+    second_counter_60 dut(
+        .clk(clk), .reset(reset), .tick_1s(tick_1s),
+        .tick_1min(tick_1min), .sec_count(sec_count)
+    );
+
+    initial begin
+        clk = 1'b0;
+        forever #5 clk = ~clk;
+    end
+
+    task make_tick_1s;
+        begin
+            tick_1s = 1'b1; #10;
+            tick_1s = 1'b0; #20;
+        end
+    endtask
+
+    initial begin
+        reset = 1'b1; tick_1s = 1'b0; #20;
+        reset = 1'b0;
+        repeat (65) begin       // 60번째에서 tick_1min 발생
+            make_tick_1s;
+        end
+        $finish;
+    end
+
+endmodule
+</code></pre></div>
+<p>파일명: <code>tb_clock_counter_hhmm.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
+module tb_clock_counter_hhmm;
+
+    reg        clk, reset, tick_1min;
+    wire [3:0] min_ones, min_tens, hour_ones, hour_tens;
+
+    clock_counter_hhmm dut(
+        .clk(clk), .reset(reset), .tick_1min(tick_1min),
+        .min_ones(min_ones), .min_tens(min_tens),
+        .hour_ones(hour_ones), .hour_tens(hour_tens)
+    );
+
+    initial begin
+        clk = 1'b0;
+        forever #5 clk = ~clk;
+    end
+
+    task make_tick_1min;
+        begin
+            tick_1min = 1'b1; #10;
+            tick_1min = 1'b0; #20;
+        end
+    endtask
+
+    initial begin
+        reset = 1'b1; tick_1min = 1'b0; #20;
+        reset = 1'b0;
+        repeat (1445) begin     // 하루(1440분)를 넘겨 00:05까지 확인
+            make_tick_1min;
+        end
+        $finish;
+    end
+
+endmodule
+</code></pre></div>
+</section><section class="section" id="s07"><h2><span class="num">07</span>시계 DP 점멸과 FND 모듈</h2><p><strong>RTL 4 · DP 1Hz 점멸</strong> — 0.5초마다 반전해 0.5초 켜짐·0.5초 꺼짐을 만듭니다. DP는 Active Low이므로 <code>~blink</code>를 내보냅니다.</p>
+<p>파일명: <code>dp_blink_1hz.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module dp_blink_1hz(
+    input  clk,       // 100MHz 기준 Clock
+    input  reset,     // 동기 Reset
+    input  enable,    // Blink 동작 허용
+    output dp_state   // dp 출력, Active-Low
+);
+
+    reg [25:0] count_blink;   // 0.5초 Count용
+    reg        blink;         // 0.5초마다 반전되는 내부 상태
+
+    always @(posedge clk) begin
+        if (reset) begin
+            count_blink &lt;= 26'd0;
+            blink       &lt;= 1'b0;        // 초기 dp는 꺼짐
+        end
+        else begin
+            if (enable) begin
+                if (count_blink == 26'd49_999_999) begin
+                    count_blink &lt;= 26'd0;
+                    blink       &lt;= ~blink;          // 0.5초마다 반전
+                end
+                else begin
+                    count_blink &lt;= count_blink + 1'b1;
+                end
+            end
+            else begin
+                count_blink &lt;= 26'd0;
+                blink       &lt;= 1'b0;                // 정지 시 dp 꺼짐
+            end
+        end
+    end
+
+    assign dp_state = ~blink;   // blink=1이면 dp 켜짐
+
+endmodule
+</code></pre></div>
+<p>파일명: <code>tb_dp_blink_1hz.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
+module tb_dp_blink_1hz;
+
+    reg  clk, reset, enable;
+    wire dp_state;
+
+    dp_blink_1hz dut(.clk(clk), .reset(reset), .enable(enable), .dp_state(dp_state));
+
+    initial begin
+        clk = 1'b0;
+        forever #5 clk = ~clk;
+    end
+
+    initial begin
+        reset = 1'b1; enable = 1'b0; #100;
+        reset = 1'b0; enable = 1'b1;
+        #2_100_000_000;         // 약 2.1초 관찰
+        enable = 1'b0; #100;
+        $finish;
+    end
+
+endmodule
+</code></pre></div>
+<p><strong>RTL 5 · FND 스캔 카운터 (시계용)</strong> — 스톱워치와 달리 <strong>50,000클록(0.5ms)마다</strong> 다음 자리로 넘어갑니다. 네 자리 한 바퀴가 2ms이므로 깜빡임 없이 보입니다.</p>
+<p>파일명: <code>fnd_scan_counter.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module fnd_scan_counter(
+    input            clk,        // 기준 Clock
+    input            reset,      // 동기 Reset
+    output reg [1:0] digit_sel   // 현재 선택 Digit
+);
+
+    reg [15:0] scan_count;   // Scan 속도 Count
+
+    always @(posedge clk) begin
+        if (reset) begin
+            scan_count &lt;= 16'd0;
+            digit_sel  &lt;= 2'd0;
+        end
+        else begin
+            if (scan_count == 16'd49_999) begin
+                scan_count &lt;= 16'd0;                // Scan 주기 도달
+                digit_sel  &lt;= digit_sel + 1'b1;     // 다음 Digit 선택
+            end
+            else begin
+                scan_count &lt;= scan_count + 1'b1;
+            end
+        end
+    end
+
+endmodule
+</code></pre></div>
+<p><strong>RTL 6 · FND 4자리 MUX</strong></p>
+<p>파일명: <code>fnd_mux_4digit.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module fnd_mux_4digit(
+    input      [3:0] digit0,         // 1분 자리
+    input      [3:0] digit1,         // 10분 자리
+    input      [3:0] digit2,         // 1시간 자리
+    input      [3:0] digit3,         // 10시간 자리
+    input      [1:0] digit_sel,      // 현재 선택 Digit
+    output reg [3:0] current_digit,  // Decoder로 보낼 BCD 값
+    output reg [3:0] an              // FND Digit 선택, Active-Low
+);
+
+    always @(*) begin
+        current_digit = 4'd0;
+        an            = 4'b1111;
+
+        case (digit_sel)
+            2'd0: begin current_digit = digit0; an = 4'b1110; end   // 1분
+            2'd1: begin current_digit = digit1; an = 4'b1101; end   // 10분
+            2'd2: begin current_digit = digit2; an = 4'b1011; end   // 1시간
+            2'd3: begin current_digit = digit3; an = 4'b0111; end   // 10시간
+        endcase
+    end
+
+endmodule
+</code></pre></div>
+<p>RTL 7 <code>fnd_decoder.v</code>는 스톱워치와 같은 모듈을 그대로 재사용합니다.</p>
+</section><section class="section" id="s08"><h2><span class="num">08</span>Basys3 24시간 시계 Top</h2><table>
+<thead>
+<tr>
+  <th>포트</th>
+  <th>역할</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>clk</code></td>
+  <td>100MHz 클록</td>
+</tr>
+<tr>
+  <td><code>btnC</code></td>
+  <td>Reset</td>
+</tr>
+<tr>
+  <td><code>sw[0]</code></td>
+  <td>Enable</td>
+</tr>
+<tr>
+  <td><code>led[0]</code> / <code>led[1]</code></td>
+  <td><code>tick_1s</code> / <code>tick_1min</code> (1클록 폭이라 거의 보이지 않음)</td>
+</tr>
+<tr>
+  <td><code>led[7:2]</code></td>
+  <td>내부 초 카운트 0~59 (2진수)</td>
+</tr>
+<tr>
+  <td><code>seg</code>, <code>an</code>, <code>dp</code></td>
+  <td><code>HH.MM</code> 표시, 시·분 사이 DP 점멸</td>
+</tr>
+</tbody>
+</table>
+<p>파일명: <code>basys3_hhmm_clock_top.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module basys3_hhmm_clock_top(
+    input         clk,   // Basys3 100MHz Clock
+    input         btnC,  // Reset 버튼
+    input  [15:0] sw,    // sw[0]: Enable
+    output [15:0] led,   // 확인용 LED
+    output [6:0]  seg,   // Segment 출력, Active-Low
+    output [3:0]  an,    // Digit 선택, Active-Low
+    output        dp     // Decimal Point, Active-Low
+);
+
+    wire       tick_1s;        // 1초 Tick
+    wire       tick_1min;      // 1분 Tick
+    wire [5:0] sec_count;      // 내부 초 Count
+    wire [3:0] min_ones;       // 1분 자리
+    wire [3:0] min_tens;       // 10분 자리
+    wire [3:0] hour_ones;      // 1시간 자리
+    wire [3:0] hour_tens;      // 10시간 자리
+    wire [1:0] digit_sel;      // 현재 선택 Digit
+    wire [3:0] current_digit;  // 현재 표시 Digit
+    wire       dp_state;       // 1Hz Duty 50% dp 신호
+
+    // LED 확인 신호
+    assign led[0]    = tick_1s;
+    assign led[1]    = tick_1min;
+    assign led[7:2]  = sec_count;
+    assign led[15:8] = 8'd0;
+
+    // 시와 분 사이 dp만 1Hz Duty 50% 점멸
+    assign dp = (digit_sel == 2'd2) ? dp_state : 1'b1;
+
+    // 1초 Tick 생성
+    clock_divider_1s u_divider(
+        .clk(clk),
+        .reset(btnC),
+        .enable(sw[0]),
+        .tick_1s(tick_1s)
+    );
+
+    // 60초 Counter
+    second_counter_60 u_second(
+        .clk(clk),
+        .reset(btnC),
+        .tick_1s(tick_1s),
+        .tick_1min(tick_1min),
+        .sec_count(sec_count)
+    );
+
+    // HH:MM Counter
+    clock_counter_hhmm u_clock(
+        .clk(clk),
+        .reset(btnC),
+        .tick_1min(tick_1min),
+        .min_ones(min_ones),
+        .min_tens(min_tens),
+        .hour_ones(hour_ones),
+        .hour_tens(hour_tens)
+    );
+
+    // dp 1Hz Duty 50% Blink
+    dp_blink_1hz u_dp_blink(
+        .clk(clk),
+        .reset(btnC),
+        .enable(sw[0]),
+        .dp_state(dp_state)
+    );
+
+    // FND Scan Counter
+    fnd_scan_counter u_scan(
+        .clk(clk),
+        .reset(btnC),
+        .digit_sel(digit_sel)
+    );
+
+    // FND Digit 선택
+    fnd_mux_4digit u_mux(
+        .digit0(min_ones),
+        .digit1(min_tens),
+        .digit2(hour_ones),
+        .digit3(hour_tens),
+        .digit_sel(digit_sel),
+        .current_digit(current_digit),
+        .an(an)
+    );
+
+    // FND Segment Decoder
+    fnd_decoder u_decoder(
+        .bcd(current_digit),
+        .seg(seg)
+    );
 
 endmodule
 </code></pre></div>
 <table>
 <thead>
 <tr>
-  <th>구문</th>
-  <th>의미</th>
+  <th>확인 항목</th>
+  <th>기대 동작</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-  <td><code>module sw_led( ... );</code></td>
-  <td>회로 블록의 시작과 포트 목록</td>
+  <td><code>tick_1s</code></td>
+  <td>1초마다 1클록 폭</td>
 </tr>
 <tr>
-  <td><code>input wire sw0</code></td>
-  <td>외부 스위치에서 FPGA 내부로 들어오는 신호</td>
+  <td><code>tick_1min</code></td>
+  <td>60초마다 1클록 폭</td>
 </tr>
 <tr>
-  <td><code>output wire led0</code></td>
-  <td>FPGA에서 외부 LED로 나가는 신호</td>
+  <td>HH:MM</td>
+  <td>00:00 ~ 23:59 반복, 23:59 다음 00:00</td>
 </tr>
 <tr>
-  <td><code>assign led0 = sw0;</code></td>
-  <td>연속 할당, 입력 값을 그대로 출력에 연결</td>
+  <td><code>dp_state</code></td>
+  <td>0.5초 켜짐, 0.5초 꺼짐</td>
 </tr>
 <tr>
-  <td><code>endmodule</code></td>
-  <td>모듈 끝</td>
+  <td><code>dp</code></td>
+  <td><code>digit_sel == 2'd2</code>일 때만 점멸</td>
 </tr>
 </tbody>
 </table>
-<p><strong>③ XDC 작성</strong> — Add Sources → Add or Create Constraints</p>
-<p>파일명: <code>sw_led.xdc</code></p>
-<div class="codeblock"><div class="codebar"><span>tcl</span></div><pre><code>set_property PACKAGE_PIN V17 [get_ports sw0]
-set_property IOSTANDARD LVCMOS33 [get_ports sw0]
-set_property PACKAGE_PIN U16 [get_ports led0]
-set_property IOSTANDARD LVCMOS33 [get_ports led0]
-</code></pre></div>
-<p><strong>④ 합성 → 구현 → 비트스트림 → 다운로드</strong></p>
-<table>
+</section><section class="section" id="s09"><h2><span class="num">09</span>정리와 확장 과제</h2><table>
 <thead>
 <tr>
-  <th>단계</th>
-  <th>Flow Navigator</th>
-  <th>의미</th>
+  <th>항목</th>
+  <th>스톱워치</th>
+  <th>24시간 시계</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-  <td>Synthesis</td>
-  <td>Run Synthesis</td>
-  <td>Verilog 코드 → 논리 게이트 회로 변환</td>
+  <td>기준 Tick</td>
+  <td>0.01초</td>
+  <td>1초 → 1분</td>
 </tr>
 <tr>
-  <td>Implementation</td>
-  <td>Run Implementation</td>
-  <td>FPGA 내부 배치(Place)와 배선(Route)</td>
+  <td>증가 조건</td>
+  <td><code>sw[0] &amp;&amp; running &amp;&amp; tick_0p01s</code></td>
+  <td><code>tick_1min</code></td>
 </tr>
 <tr>
-  <td>Bitstream</td>
-  <td>Generate Bitstream</td>
-  <td>FPGA 설정 파일 <code>.bit</code> 생성</td>
+  <td>자리 올림</td>
+  <td>Carry 조건 미리 계산</td>
+  <td>Carry + 23:59 특수 처리</td>
 </tr>
 <tr>
-  <td>Program</td>
-  <td>Open Hardware Manager → Open Target → Auto Connect → Program Device</td>
-  <td>보드에 다운로드</td>
+  <td>DP</td>
+  <td>1초 자리 고정 점등</td>
+  <td>1시 자리에서 1Hz 점멸</td>
+</tr>
+<tr>
+  <td>스캔</td>
+  <td><code>scan_div[15:14]</code></td>
+  <td>50,000클록마다 자리 이동</td>
+</tr>
+<tr>
+  <td>설계 방식</td>
+  <td>모듈 연결형 Top</td>
+  <td>모듈 연결형 Top</td>
 </tr>
 </tbody>
 </table>
-<p><strong>⑤ 동작 확인</strong></p>
-<table>
-<thead>
-<tr>
-  <th>SW0</th>
-  <th>LED0</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>OFF (아래)</td>
-  <td>OFF</td>
-</tr>
-<tr>
-  <td>ON (위)</td>
-  <td>ON</td>
-</tr>
-</tbody>
-</table>
-<p>이 회로는 <code>LED0 = SW0</code>, 즉 <strong>버퍼(Buffer)</strong> 와 같은 동작입니다.</p>
-<table>
-<thead>
-<tr>
-  <th>오류</th>
-  <th>원인</th>
-  <th>해결</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>포트 이름 불일치</td>
-  <td><code>sw0</code>과 <code>SW0</code>은 다른 이름</td>
-  <td>Verilog와 XDC 이름을 똑같이</td>
-</tr>
-<tr>
-  <td>Unconstrained Port</td>
-  <td>XDC 핀 누락</td>
-  <td>모든 포트에 핀 지정</td>
-</tr>
-<tr>
-  <td>보드 연결 실패</td>
-  <td>케이블·전원·Runtime</td>
-  <td>드라이버와 보드 인식 절 다시 확인</td>
-</tr>
-</tbody>
-</table>
-</section><section class="section" id="s12"><h2><span class="num">12</span>Ubuntu 명령어와 한글 입력</h2><p><strong>자주 쓰는 명령어</strong></p>
-<table>
-<thead>
-<tr>
-  <th>명령어</th>
-  <th>기능</th>
-  <th>예</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><code>pwd</code></td>
-  <td>현재 위치 확인</td>
-  <td><code>pwd</code></td>
-</tr>
-<tr>
-  <td><code>ls -al</code></td>
-  <td>숨김 파일 포함 목록</td>
-  <td><code>ls -al</code></td>
-</tr>
-<tr>
-  <td><code>cd</code>, <code>cd ..</code>, <code>cd ~</code></td>
-  <td>폴더 이동·상위·홈</td>
-  <td><code>cd ~/Downloads</code></td>
-</tr>
-<tr>
-  <td><code>mkdir</code></td>
-  <td>폴더 생성</td>
-  <td><code>mkdir project</code></td>
-</tr>
-<tr>
-  <td><code>cp</code>, <code>cp -r</code></td>
-  <td>파일·폴더 복사</td>
-  <td><code>cp -r src dst</code></td>
-</tr>
-<tr>
-  <td><code>mv</code></td>
-  <td>이동 또는 이름 변경</td>
-  <td><code>mv a.txt b.txt</code></td>
-</tr>
-<tr>
-  <td><code>rm</code>, <code>rm -rf</code></td>
-  <td>파일·폴더 삭제</td>
-  <td><strong><code>rm -rf</code>는 복구 불가, 주의</strong></td>
-</tr>
-<tr>
-  <td><code>sudo apt install</code> / <code>remove</code></td>
-  <td>프로그램 설치·제거</td>
-  <td><code>sudo apt install git</code></td>
-</tr>
-<tr>
-  <td><code>lsusb</code></td>
-  <td>USB 장치 확인</td>
-  <td>Basys3 연결 확인</td>
-</tr>
-<tr>
-  <td><code>djtgcfg enum</code></td>
-  <td>Digilent 보드 확인</td>
-  <td></td>
-</tr>
-<tr>
-  <td><code>ls /dev/tty*</code></td>
-  <td>시리얼 포트 확인</td>
-  <td></td>
-</tr>
-<tr>
-  <td><code>groups</code></td>
-  <td>현재 사용자 그룹 확인</td>
-  <td><code>dialout</code>, <code>plugdev</code> 포함 여부</td>
-</tr>
-<tr>
-  <td><code>chmod +x</code></td>
-  <td>실행 권한 부여</td>
-  <td><code>chmod +x file.sh</code></td>
-</tr>
-<tr>
-  <td><code>which vivado</code>, <code>echo $PATH</code></td>
-  <td>실행 파일·경로 확인</td>
-  <td></td>
-</tr>
-<tr>
-  <td><code>clear</code> / <code>Ctrl + L</code> / <code>reset</code></td>
-  <td>화면 정리·터미널 복구</td>
-  <td></td>
-</tr>
-</tbody>
-</table>
-<table>
-<thead>
-<tr>
-  <th>오류 메시지</th>
-  <th>원인</th>
-  <th>해결</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><code>permission denied</code></td>
-  <td>권한</td>
-  <td><code>usermod</code> 후 재부팅</td>
-</tr>
-<tr>
-  <td><code>command not found</code></td>
-  <td>환경 변수</td>
-  <td><code>source settings64.sh</code></td>
-</tr>
-<tr>
-  <td><code>libtinfo.so.5</code></td>
-  <td>라이브러리</td>
-  <td><code>apt install</code>로 보완</td>
-</tr>
-<tr>
-  <td><code>device not found</code></td>
-  <td>USB</td>
-  <td><code>lsusb</code>로 확인</td>
-</tr>
-<tr>
-  <td><code>no cable found</code></td>
-  <td>드라이버</td>
-  <td>케이블 드라이버·Runtime 설치</td>
-</tr>
-</tbody>
-</table>
-<p><strong>한글 입력(ibus) 설정</strong></p>
-<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># 입력기 프레임워크(ibus)와 한글 엔진 설치 → 기본 입력기로 지정
-sudo apt update
-sudo apt install -y ibus ibus-hangul
-im-config -n ibus
-</code></pre></div>
-<ol>
-<li>Settings → Keyboard → Input Sources에 <strong>English (US)</strong> 와 <strong>Korean (Hangul)</strong> 두 개만 둡니다.</li>
-<li>View and Customize Shortcuts → Switch Input Source를 <code>Shift + Space</code> 또는 오른쪽 <code>Alt</code>로 지정합니다.</li>
-<li>재부팅 후 <code>ps -ef | grep ibus</code>, <code>ibus engine</code>으로 동작을 확인합니다.</li>
-</ol>
-<p>입력 전환이 멈추면 <code>pkill -f ibus</code> → <code>ibus-daemon -drx</code>로 재시작하고, 그래도 안 되면 재부팅합니다.</p>
-</section><section class="section" id="s13"><h2><span class="num">13</span>정리와 점검</h2><table>
-<thead>
-<tr>
-  <th>성공 단계</th>
-  <th>확인 방법</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>설치 성공</td>
-  <td><code>vivado</code> 실행</td>
-</tr>
-<tr>
-  <td>드라이버 성공</td>
-  <td><code>which djtgcfg</code> 경로 출력</td>
-</tr>
-<tr>
-  <td>보드 성공</td>
-  <td><code>djtgcfg enum</code> → <code>Device: Basys3</code></td>
-</tr>
-<tr>
-  <td>실습 성공</td>
-  <td>SW0에 따라 LED0 ON/OFF</td>
-</tr>
-</tbody>
-</table>
+<p><strong>핵심 결론</strong></p>
+<ul>
+<li>Tick은 클록이 아니라 <strong>Enable 신호</strong>입니다.</li>
+<li>모든 레지스터는 <code>always @(posedge clk)</code>에서 동작합니다.</li>
+<li>Top 모듈은 <strong>배선 중심</strong>으로 두고 기능은 재사용 가능한 하위 모듈에 둡니다. <code>fnd_decoder</code>처럼 두 프로젝트에서 그대로 재사용되는 모듈이 생깁니다.</li>
+</ul>
 <p><strong>스스로 점검하기</strong></p>
 <ol>
-<li>Vivado만 설치하면 Basys3가 바로 인식되는가? 그렇지 않다면 무엇이 더 필요한가?</li>
-<li>Open Target이 동작하지 않을 때 가장 먼저 확인할 것은 무엇인가?</li>
-<li>XDC의 두 가지 역할은 무엇인가?</li>
-<li>Verilog 포트 이름이 <code>sw0</code>이고 XDC에 <code>SW0</code>이라 적으면 어떤 일이 생기는가?</li>
-<li>Synthesis와 Implementation의 차이를 한 문장씩 설명하시오.</li>
+<li>스톱워치에서 125번째 Tick 후 FND에 표시되는 값은 무엇인가?</li>
+<li><code>clock_divider_10ms</code>에서 <code>enable</code>이 0일 때 <code>count_div</code>를 0으로 되돌리는 이유는 무엇인가?</li>
+<li>시계 카운터에서 <code>last_time</code> 조건이 없으면 23:59 다음에 무엇이 표시되는가?</li>
+<li><code>led[0] = tick_1s</code>가 보드에서 잘 보이지 않는 이유와 개선 방법을 쓰시오.</li>
 </ol>
-<p><strong>핵심 키워드:</strong> Adept Runtime · Hardware Manager · Open Target · XDC · <code>PACKAGE_PIN</code> · <code>IOSTANDARD</code> · Synthesis · Implementation · Bitstream</p>
+<p><strong>확장 과제</strong></p>
+<ul>
+<li>스톱워치를 <code>MM:SS</code>(분:초) 형식으로 바꾸고 59:59 이후 처리를 설계하시오.</li>
+<li>시계에 시·분 설정 버튼을 추가하시오(버튼 디바운스·에지 검출 포함).</li>
+<li>스톱워치에 랩(Lap) 기록 기능을 추가하시오.</li>
+</ul>
 </section><div class="chapter-links" id="chapter-links"></div></main></div>
-<footer class="footer">Digital Design · FPGA · Verilog · v01  · 실습 결과는 실제 환경에서 검증</footer>
-<script>window.COURSE={"title": "Digital Design · FPGA · Verilog", "short_title": "DIGITAL DESIGN FPGA", "home_label": "전체 학습 안내서", "chapters": [{"id": "ch01", "number": 1, "title": "개발환경과 첫 실습", "file": "ch01_fpga_environment_v01.html"}, {"id": "ch02", "number": 2, "title": "논리 게이트와 Verilog", "file": "ch02_logic_gates_v01.html"}, {"id": "ch03", "number": 3, "title": "조합회로 설계", "file": "ch03_combinational_v01.html"}, {"id": "ch04", "number": 4, "title": "순차회로 설계", "file": "ch04_sequential_v01.html"}, {"id": "ch05", "number": 5, "title": "스톱워치와 디지털 시계", "file": "ch05_stopwatch_clock_v01.html"}, {"id": "ch06", "number": 6, "title": "Vivado IP 블록 설계", "file": "ch06_vivado_ip_v01.html"}, {"id": "ch07", "number": 7, "title": "FSM 회로 설계", "file": "ch07_fsm_v01.html"}]};</script><script>/*
+<footer class="footer">Digital Design · FPGA · Verilog · v02  · 실습 결과는 실제 환경에서 검증</footer>
+<script>window.COURSE={"title": "Digital Design · FPGA · Verilog", "short_title": "DIGITAL DESIGN FPGA", "home_label": "전체 학습 안내서", "chapters": [{"id": "ch01", "number": 1, "title": "개발환경과 첫 실습", "file": "ch01_fpga_environment_v02.html"}, {"id": "ch02", "number": 2, "title": "논리 게이트와 Verilog", "file": "ch02_logic_gates_v02.html"}, {"id": "ch03", "number": 3, "title": "조합회로 설계", "file": "ch03_combinational_v02.html"}, {"id": "ch04", "number": 4, "title": "순차회로 설계", "file": "ch04_sequential_v02.html"}, {"id": "ch05", "number": 5, "title": "스톱워치와 디지털 시계", "file": "ch05_stopwatch_clock_v02.html"}, {"id": "ch06", "number": 6, "title": "Vivado IP 블록 설계", "file": "ch06_vivado_ip_v02.html"}, {"id": "ch07", "number": 7, "title": "FSM 회로 설계", "file": "ch07_fsm_v02.html"}]};</script><script>/*
  * 교육용 HTML 공통 동작 — 유지보수용 원본 (STANDARD 4·10.3·10.4)
  * 페이지 본문은 바꾸지 않고 탐색·이전/다음·모바일 메뉴·코드 복사만 덧붙인다.
  * 입력: 페이지의 window.COURSE (tools/guide/build_guides.py가 실제 존재하는 장만 넣음),

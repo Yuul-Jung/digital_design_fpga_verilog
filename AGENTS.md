@@ -20,3 +20,7 @@
 - 원고는 `source/content/chXX.md`, 장 목록은 `source/course.json`에 있다. `source/build.py`(rule_md 템플릿 사본)로 생성한 `source/dist/*.html`을 저장소 루트에 복사해 GitHub Pages로 게시한다.
 - 코드 박스 상단에는 언어만 표시하고 파일명은 바로 위 문단에 적는다. 검증 상태·수정 이력 등 제작 메타 문구는 페이지에 넣지 않고 VERIFY.md에만 기록한다.
 - 원본 강의자료(PDF)는 저장소에 올리지 않는다.
+- 그림은 `images/chXX/`에 두고 원고에서 `![대체 텍스트](images/chXX/파일)` 다음 줄에 `*그림 N-M. 설명 (출처: …)*` 캡션을 단다. Digilent 그림은 다시 그리지 않고 원본 그대로 쓰며 출처만 표시한다.
+- SVG 도식은 rule_md `common/flowchart-rules.md`를 따르고 `source/figures/gen_svgs.py`로 생성한다. 사용자명·호스트명·장치 일련번호가 보이는 화면 캡처는 싣지 않는다.
+- `source/assets/site.css` 끝에 본문 그림·캡션 스타일을 저장소별로 추가했다.
+- 코드 블록 안에서 `## `로 시작하는 줄은 생성기가 절 제목으로 잘라 내므로 XDC 주석은 `#` 하나로 쓴다.

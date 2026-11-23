@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="FSM 구조 → Moore·Mealy → 구현 방식 비교 → 시퀀스 검출"><title>제07장 · FSM 회로 설계 · Digital Design · FPGA · Verilog</title>
+<meta name="description" content="부울대수 → 기본 게이트 → 벡터·연산자 → 74 시리즈 → 구조적 설계"><title>제02장 · 논리 게이트와 Verilog · Digital Design · FPGA · Verilog</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>/*
@@ -576,1487 +576,1244 @@ pre code {
     height: auto;
   }
 }
-</style></head><body data-chapter="ch07">
+
+/* 저장소별 추가: 본문 그림·캡션 (digital_design_fpga_verilog) */
+.section img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 18px auto 6px;
+  border: 1px solid #e1e1dc;
+  border-radius: 8px;
+  background: #ffffff;
+  max-height: 640px;
+  width: auto;
+  object-fit: contain;
+}
+.section p > img + em,
+.section p > em.caption {
+  display: block;
+  margin: 0 auto 14px;
+  text-align: center;
+  font-size: 0.84rem;
+  font-style: normal;
+  color: #5b5e68;
+}
+</style></head><body data-chapter="ch02">
 <button type="button" class="mobile-menu" id="mobile-menu" aria-controls="course-nav" aria-expanded="false">☰ 장·목차</button><div class="shade" id="shade"></div>
-<header class="hero"><div class="hero-inner"><p class="kicker">DIGITAL DESIGN FPGA · CHAPTER 07</p><h1>제07장 · FSM 회로 설계</h1><p>FSM 구조 → Moore·Mealy → 구현 방식 비교 → 시퀀스 검출</p><div class="chips"><span class="chip">FSM</span><span class="chip">Moore</span><span class="chip">Mealy</span><span class="chip">Icarus Verilog</span></div></div></header>
-<div class="wrap"><nav class="toc" id="course-nav" aria-label="장과 절 탐색"></nav><main class="content" id="main-content"><section class="section" id="s00"><h2><span class="num">00</span>학습 안내</h2><p><strong>FSM(Finite State Machine, 유한 상태 머신)</strong> 은 디지털 시스템의 제어 흐름을 <strong>상태(State)</strong> 단위로 설계하는 방법입니다. 정해진 수의 상태를 갖고, 입력에 따라 상태를 옮겨 가며 출력을 만듭니다. UART 송수신, 신호등, 자판기, CPU 제어부가 모두 FSM입니다.</p>
-<table>
-<thead>
-<tr>
-  <th>회로</th>
-  <th>특징</th>
-  <th>예</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>조합회로</td>
-  <td>현재 입력만 사용</td>
-  <td>MUX, Decoder, Adder</td>
-</tr>
-<tr>
-  <td>레지스터</td>
-  <td>클록에 맞춰 값 저장</td>
-  <td>데이터 저장</td>
-</tr>
-<tr>
-  <td>카운터</td>
-  <td>정해진 순서로 상태 증가</td>
-  <td>시간·개수 카운트</td>
-</tr>
-<tr>
-  <td><strong>FSM</strong></td>
-  <td><strong>조건에 따라 상태 전이</strong></td>
-  <td>제어기, 통신 제어, 모드 제어</td>
-</tr>
-</tbody>
-</table>
-<p>FSM은 &quot;시스템이 지금 어느 단계에 있는지&quot;를 기억하고, 입력 조건에 따라 다음 동작을 결정합니다.</p>
+<header class="hero"><div class="hero-inner"><p class="kicker">DIGITAL DESIGN FPGA · CHAPTER 02</p><h1>제02장 · 논리 게이트와 Verilog</h1><p>부울대수 → 기본 게이트 → 벡터·연산자 → 74 시리즈 → 구조적 설계</p><div class="chips"><span class="chip">Gate</span><span class="chip">Vector</span><span class="chip">74HC51</span><span class="chip">Instance</span></div></div></header>
+<div class="wrap"><nav class="toc" id="course-nav" aria-label="장과 절 탐색"></nav><main class="content" id="main-content"><section class="section" id="s00"><h2><span class="num">00</span>학습 안내</h2><p>이 장은 디지털 회로의 가장 작은 단위인 <strong>논리 게이트(Logic Gate)</strong> 를 Verilog로 만들고 Basys3의 스위치·LED로 확인합니다. 부울대수 공리에서 출발해 기본 게이트, Verilog 연산자와 벡터, 74 시리즈 IC 모델링, 그리고 모듈을 조립하는 <strong>구조적 설계</strong>까지 이어집니다.</p>
 <table>
 <thead>
 <tr>
   <th>실습</th>
-  <th>종류</th>
-  <th>핵심</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>버튼 3회 누름 감지기</td>
-  <td>Moore</td>
-  <td>상태가 곧 출력</td>
-</tr>
-<tr>
-  <td>동기식 직렬 프레임 수신기</td>
-  <td>Mealy</td>
-  <td>전이 화살표에 출력</td>
-</tr>
-<tr>
-  <td>읽기 제어기 3가지 구현</td>
-  <td>Moore</td>
-  <td><code>assign</code> / 조합 <code>always</code> / 출력 레지스터</td>
-</tr>
-<tr>
-  <td>연속 비트 검출기</td>
-  <td>Mealy</td>
-  <td>00 또는 11 검출</td>
-</tr>
-</tbody>
-</table>
-</section><section class="section" id="s01"><h2><span class="num">01</span>FSM 구조와 상태 갱신</h2><p>FSM은 세 블록으로 이루어집니다.</p>
-<table>
-<thead>
-<tr>
-  <th>구성 요소</th>
-  <th>역할</th>
-  <th>회로 종류</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>현재상태 레지스터 (State Register)</td>
-  <td>현재 상태 저장</td>
-  <td>순차회로 (플립플롭)</td>
-</tr>
-<tr>
-  <td>차기상태 논리 (Next State Logic)</td>
-  <td>현재 상태 + 입력 → 다음 상태</td>
-  <td>조합회로</td>
-</tr>
-<tr>
-  <td>출력 논리 (Output Logic)</td>
-  <td>출력 생성</td>
-  <td>조합회로 (Moore/Mealy에 따라 다름)</td>
-</tr>
-</tbody>
-</table>
-<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>          ┌──────────────────┐      ┌──────────────┐
-입력 ────►│ 차기상태 논리     │─ ns ─►│ 상태 레지스터 │── ps ──┬──► 출력 논리 ──► 출력
-          │ (조합회로)        │      │ (posedge clk) │       │      ▲
-          └──────────────────┘      └──────────────┘       │      │ (Mealy만)
-                  ▲                                         │     입력
-                  └──────────────── ps ─────────────────────┘
-</code></pre></div>
-<p><strong>상태는 클록 상승 에지에서만 바뀝니다.</strong> 차기상태 <code>ns</code>는 클록 사이 구간에 미리 계산되고, 에지 순간 <code>ps</code>로 저장됩니다. 입력이 바뀌어도 <code>ps</code>는 즉시 바뀌지 않습니다.</p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>always @(posedge clk) begin
-    ps &lt;= ns;
-end
-</code></pre></div>
-<table>
-<thead>
-<tr>
-  <th>기호</th>
-  <th>의미</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><code>ps</code></td>
-  <td>Present State, 현재상태</td>
-</tr>
-<tr>
-  <td><code>ns</code></td>
-  <td>Next State, 차기상태</td>
-</tr>
-<tr>
-  <td><code>&lt;=</code></td>
-  <td>순차회로용 Non-blocking 대입</td>
-</tr>
-</tbody>
-</table>
-</section><section class="section" id="s02"><h2><span class="num">02</span>FSM 코딩 가이드라인</h2><p><strong>1) 초기 상태를 명확히 정의한다</strong> — 리셋으로 <code>S0</code>·<code>IDLE</code>·<code>INIT</code> 같은 초기 상태에 들어가게 합니다. 초기 상태가 없으면 시뮬레이션에서 <code>x</code>가 되고 실제 회로도 엉뚱한 상태에서 시작할 수 있습니다. 수업에서는 동기 리셋을 기본으로, 필요할 때 비동기 리셋을 씁니다.</p>
-<p><strong>2) 세 블록으로 나누어 작성한다</strong> — 상태 저장, 상태 전이, 출력 생성의 위치가 명확해집니다.</p>
-<p><strong>3) 상태 레지스터는 플립플롭으로</strong></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>always @(posedge clk) begin
-    if (reset)
-        state &lt;= S0;
-    else
-        state &lt;= next_state;
-end
-</code></pre></div>
-<p><strong>4) 다음 상태 논리는 조합논리로</strong> — <code>case</code>로 현재 상태를 나누고, 각 상태 안에서 <code>if-else</code>로 입력을 판단합니다. 맨 앞의 <code>next_state = state;</code>는 래치를 막는 기본값입니다.</p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>always @(*) begin
-    next_state = state;
-    case (state)
-        S0: if (btn_pulse) next_state = S1; else next_state = S0;
-        S1: if (btn_pulse) next_state = S2; else next_state = S1;
-        S2: if (btn_pulse) next_state = S0; else next_state = S2;
-        default:           next_state = S0;
-    endcase
-end
-</code></pre></div>
-<p><strong>5) 출력 논리는 FSM 종류에 맞게</strong></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>// Moore: 현재 상태만 보고 출력
-assign led_on = (state == S1);
-
-// Mealy: 현재 상태와 입력을 함께 보고 출력
-assign detect = (state == S2) &amp;&amp; (input_bit == 1'b1);
-</code></pre></div>
-<p><strong>6) 정의되지 않은 상태는 복구한다</strong> — 잡음·초기화 문제로 정의되지 않은 상태에 들어가도 <code>default</code>에서 초기 상태로 돌아오게 합니다.</p>
-<p><strong>7) 상태 이름은 숫자 대신 이름으로</strong></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>localparam S0 = 2'd0;
-localparam S1 = 2'd1;
-localparam S2 = 2'd2;
-</code></pre></div>
-<table>
-<thead>
-<tr>
-  <th>방식</th>
-  <th>특징</th>
-  <th>FSM 상태 정의</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><code>localparam</code></td>
-  <td>모듈 내부 고정값</td>
-  <td><strong>권장</strong></td>
-</tr>
-<tr>
-  <td><code>parameter</code></td>
-  <td>외부에서 변경 가능</td>
-  <td>필요 시</td>
-</tr>
-<tr>
-  <td><code>`define</code></td>
-  <td>컴파일 범위 전역 치환</td>
-  <td>가급적 지양 (여러 FSM의 같은 이름이 충돌)</td>
-</tr>
-</tbody>
-</table>
-<table>
-<thead>
-<tr>
-  <th>원칙</th>
-  <th>핵심</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>초기 상태</td>
-  <td>리셋으로 초기 상태 진입</td>
-</tr>
-<tr>
-  <td>구조 분리</td>
-  <td>State Register · Next State Logic · Output Logic</td>
-</tr>
-<tr>
-  <td>상태 저장</td>
-  <td>플립플롭</td>
-</tr>
-<tr>
-  <td>다음 상태</td>
-  <td>현재 상태 + 입력</td>
-</tr>
-<tr>
-  <td>출력</td>
-  <td>Moore는 상태, Mealy는 상태 + 입력</td>
-</tr>
-<tr>
-  <td>예외 처리</td>
-  <td><code>default</code>로 복구</td>
-</tr>
-<tr>
-  <td>상태 이름</td>
-  <td><code>localparam</code></td>
-</tr>
-</tbody>
-</table>
-</section><section class="section" id="s03"><h2><span class="num">03</span>Moore FSM 버튼 3회 감지기</h2><p><strong>Moore 머신</strong>은 출력이 <strong>현재 상태만으로</strong> 결정됩니다(출력 = f(현재상태)). 상태도에서는 출력을 <strong>원 안</strong>에 씁니다. 출력이 안정적이지만 입력 반응이 한 클록 늦을 수 있습니다. 스톱워치·디지털 시계·표시 모드처럼 상태 중심 제어에 적합합니다.</p>
-<p><strong>문제</strong> — 버튼 입력 <code>x</code>가 들어올 때마다 한 단계씩 이동하고, 3번 눌리면 <code>z = 1</code>로 LED를 켭니다.</p>
-<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>         x=0          x=0          x=0
-        ┌───┐        ┌───┐        ┌───┐
-        ▼   │        ▼   │        ▼   │
-     ┌──────┐ x=1 ┌──────┐ x=1 ┌──────┐ x=1 ┌──────┐
- ───►│ S0/0 │────►│ S1/0 │────►│ S2/0 │────►│ S3/1 │
-     └──────┘     └──────┘     └──────┘     └──────┘
-        ▲                                       │
-        └─────────────── x = - (무관) ──────────┘
-</code></pre></div>
-<table>
-<thead>
-<tr>
-  <th>상태</th>
-  <th>의미</th>
-  <th style="text-align:center">출력 z</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>S0</td>
-  <td>0회 누름</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td>S1</td>
-  <td>1회 누름</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td>S2</td>
-  <td>2회 누름</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td>S3</td>
-  <td>3회 누름 완료</td>
-  <td style="text-align:center">1</td>
-</tr>
-</tbody>
-</table>
-<table>
-<thead>
-<tr>
-  <th>PS</th>
-  <th style="text-align:center">x</th>
-  <th>NS</th>
-  <th>의미</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>S0</td>
-  <td style="text-align:center">0 / 1</td>
-  <td>S0 / S1</td>
-  <td>대기 / 1회 입력</td>
-</tr>
-<tr>
-  <td>S1</td>
-  <td style="text-align:center">0 / 1</td>
-  <td>S1 / S2</td>
-  <td>유지 / 2회 입력</td>
-</tr>
-<tr>
-  <td>S2</td>
-  <td style="text-align:center">0 / 1</td>
-  <td>S2 / S3</td>
-  <td>유지 / 3회 완료</td>
-</tr>
-<tr>
-  <td>S3</td>
-  <td style="text-align:center">-</td>
-  <td>S0</td>
-  <td>출력 후 초기화</td>
-</tr>
-</tbody>
-</table>
-<p><code>NS</code>는 곧바로 상태가 되는 것이 아니라 클록이 들어올 때 상태 레지스터에 저장되어 새로운 <code>PS</code>가 됩니다.</p>
-<p>파일명: <code>moore_button_3press_fsm.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
-module moore_button_3press_fsm(
-    input  wire       clk,
-    input  wire       reset,
-    input  wire       x,
-    output reg        z,
-    // 시뮬레이션 확인용 출력
-    output wire [1:0] state_dbg,
-    output wire [1:0] next_state_dbg
-);
-
-    // 상태 정의
-    localparam S0 = 2'd0;   // 버튼 0회 입력
-    localparam S1 = 2'd1;   // 버튼 1회 입력
-    localparam S2 = 2'd2;   // 버튼 2회 입력
-    localparam S3 = 2'd3;   // 버튼 3회 입력 완료
-
-    reg [1:0] current_state;
-    reg [1:0] next_state;
-
-    assign state_dbg      = current_state;
-    assign next_state_dbg = next_state;
-
-    // State Register: 클록 상승 에지에서 NS가 PS로 저장
-    always @(posedge clk) begin
-        if (reset)
-            current_state &lt;= S0;
-        else
-            current_state &lt;= next_state;
-    end
-
-    // Next State Logic: PS와 입력 x로 NS 결정
-    always @(*) begin
-        next_state = current_state;
-        case (current_state)
-            S0: begin
-                if (x == 1'b1) next_state = S1;   // 1회 입력
-                else           next_state = S0;   // 입력 없음
-            end
-            S1: begin
-                if (x == 1'b1) next_state = S2;   // 2회 입력
-                else           next_state = S1;   // 유지
-            end
-            S2: begin
-                if (x == 1'b1) next_state = S3;   // 3회 입력 완료
-                else           next_state = S2;   // 유지
-            end
-            S3: begin
-                next_state = S0;                  // 출력 후 초기 상태 복귀
-            end
-            default: begin
-                next_state = S0;
-            end
-        endcase
-    end
-
-    // Moore Output Logic: 출력 z는 현재 상태만 보고 결정
-    always @(*) begin
-        case (current_state)
-            S0:      z = 1'b0;
-            S1:      z = 1'b0;
-            S2:      z = 1'b0;
-            S3:      z = 1'b1;
-            default: z = 1'b0;
-        endcase
-    end
-
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_moore_button_3press_fsm.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
-module tb_moore_button_3press_fsm;
-
-    reg        clk, reset, x;
-    wire       z;
-    wire [1:0] state_dbg, next_state_dbg;
-
-    moore_button_3press_fsm dut (
-        .clk(clk), .reset(reset), .x(x), .z(z),
-        .state_dbg(state_dbg), .next_state_dbg(next_state_dbg)
-    );
-
-    // 100MHz Clock: 10ns 주기
-    always #5 clk = ~clk;
-
-    initial begin
-        clk = 1'b0; reset = 1'b1; x = 1'b0;
-        #20;
-        reset = 1'b0;
-
-        // Case 1: 버튼 3회 입력
-        // 예상 상태 S0 → S1 → S2 → S3 → S0, 출력 0 → 0 → 0 → 1 → 0
-        $display(&quot;Case 1 : button 3 press&quot;);
-        x = 1'b1; #10;   // S0 → S1
-        x = 1'b1; #10;   // S1 → S2
-        x = 1'b1; #10;   // S2 → S3
-        x = 1'b0; #10;   // S3 → S0, z = 1
-
-        // Case 2: 중간에 입력이 없으면 S1, S2 유지
-        reset = 1'b1; x = 1'b0; #20;
-        reset = 1'b0;           #10;
-        $display(&quot;Case 2 : button press with hold state&quot;);
-        x = 1'b1; #10;   // S0 → S1
-        x = 1'b0; #10;   // S1 → S1
-        x = 1'b1; #10;   // S1 → S2
-        x = 1'b0; #10;   // S2 → S2
-        x = 1'b1; #10;   // S2 → S3
-        x = 1'b0; #10;   // S3 → S0, z = 1
-        #20;
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<table>
-<thead>
-<tr>
-  <th style="text-align:center">클록</th>
-  <th style="text-align:center">x</th>
-  <th>PS</th>
-  <th>NS</th>
-  <th style="text-align:center">z</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td>S0</td>
-  <td>S1</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">2</td>
-  <td style="text-align:center">1</td>
-  <td>S1</td>
-  <td>S2</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">3</td>
-  <td style="text-align:center">1</td>
-  <td>S2</td>
-  <td>S3</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">4</td>
-  <td style="text-align:center">-</td>
-  <td>S3</td>
-  <td>S0</td>
-  <td style="text-align:center"><strong>1</strong></td>
-</tr>
-</tbody>
-</table>
-<p><code>x</code>가 1이 되는 순간 바로 <code>z</code>가 1이 되는 것이 아니라, FSM이 <strong>S3에 도달했을 때</strong> <code>z</code>가 1이 됩니다. 이것이 Moore 출력의 핵심입니다.</p>
-</section><section class="section" id="s04"><h2><span class="num">04</span>Mealy FSM 직렬 프레임 수신기</h2><p><strong>Mealy 머신</strong>은 출력이 <strong>현재 상태와 입력</strong>으로 결정됩니다(출력 = f(현재상태, 입력)). 상태도에서는 출력을 <strong>전이 화살표 위</strong>에 <code>입력/출력</code>으로 씁니다. 반응이 빠르지만 입력 변화에 민감합니다. 에지 검출기, UART 수신, 핸드셰이크 제어에 자주 쓰입니다.</p>
-<p><strong>문제</strong> — 동기식 직렬 통신에서 클록마다 1비트 <code>w</code>가 들어옵니다. FSM이 수신 패턴을 판정해 출력 <code>y1y2</code>를 냅니다.</p>
-<table>
-<thead>
-<tr>
-  <th>입력 패턴</th>
-  <th>의미</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><code>11</code></td>
-  <td>짧은 정상 프레임</td>
-</tr>
-<tr>
-  <td><code>101</code></td>
-  <td>긴 정상 프레임</td>
-</tr>
-<tr>
-  <td><code>100</code></td>
-  <td>오류 프레임</td>
-</tr>
-</tbody>
-</table>
-<table>
-<thead>
-<tr>
-  <th>출력 y1y2</th>
-  <th>의미</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>00</td>
-  <td>판정 없음</td>
-</tr>
-<tr>
-  <td>10</td>
-  <td>유효 비트 1 수신</td>
-</tr>
-<tr>
-  <td>01</td>
-  <td>긴 프레임 확인 또는 오류 복귀</td>
-</tr>
-<tr>
-  <td>11</td>
-  <td>정상 프레임 수신 완료</td>
-</tr>
-</tbody>
-</table>
-<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>S0 ──1/10──► S1 ──1/10──► S2 ──-/11──► S0
-│            │             ▲
-0/00         0/00          │ 1/01
-▼            ▼             │
-S0           S3 ───────────┘
-             │
-             0/00
-             ▼
-             S4 ──-/01──► S0
-</code></pre></div>
-<table>
-<thead>
-<tr>
-  <th>상태</th>
-  <th>의미</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>S0</td>
-  <td>수신 대기</td>
-</tr>
-<tr>
-  <td>S1</td>
-  <td>첫 번째 비트 1 수신</td>
-</tr>
-<tr>
-  <td>S3</td>
-  <td><code>10</code>까지 수신</td>
-</tr>
-<tr>
-  <td>S2</td>
-  <td>정상 프레임 완료 직전</td>
-</tr>
-<tr>
-  <td>S4</td>
-  <td>오류 프레임 확인 후 복귀 직전</td>
-</tr>
-</tbody>
-</table>
-<p>상태는 시간을 기다리는 것이 아니라 <strong>지금까지 받은 비트 패턴을 기억</strong>합니다. 예를 들어 S1에서 0이 들어오면 수신 비트열이 <code>10</code>이므로 S3으로 갑니다.</p>
-<table>
-<thead>
-<tr>
-  <th>PS</th>
-  <th style="text-align:center">w</th>
-  <th>NS</th>
-  <th style="text-align:center">y1y2</th>
-  <th>의미</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>S0</td>
-  <td style="text-align:center">0</td>
-  <td>S0</td>
-  <td style="text-align:center">00</td>
-  <td>프레임 시작 아님</td>
-</tr>
-<tr>
-  <td>S0</td>
-  <td style="text-align:center">1</td>
-  <td>S1</td>
-  <td style="text-align:center">10</td>
-  <td>시작 후보 1 수신</td>
-</tr>
-<tr>
-  <td>S1</td>
-  <td style="text-align:center">1</td>
-  <td>S2</td>
-  <td style="text-align:center">10</td>
-  <td><code>11</code> 정상 프레임</td>
-</tr>
-<tr>
-  <td>S1</td>
-  <td style="text-align:center">0</td>
-  <td>S3</td>
-  <td style="text-align:center">00</td>
-  <td><code>10</code>까지 수신</td>
-</tr>
-<tr>
-  <td>S3</td>
-  <td style="text-align:center">1</td>
-  <td>S2</td>
-  <td style="text-align:center">01</td>
-  <td><code>101</code> 정상 프레임</td>
-</tr>
-<tr>
-  <td>S3</td>
-  <td style="text-align:center">0</td>
-  <td>S4</td>
-  <td style="text-align:center">00</td>
-  <td><code>100</code> 오류 프레임</td>
-</tr>
-<tr>
-  <td>S2</td>
-  <td style="text-align:center">-</td>
-  <td>S0</td>
-  <td style="text-align:center">11</td>
-  <td>정상 완료 후 대기</td>
-</tr>
-<tr>
-  <td>S4</td>
-  <td style="text-align:center">-</td>
-  <td>S0</td>
-  <td style="text-align:center">01</td>
-  <td>오류 처리 후 대기</td>
-</tr>
-</tbody>
-</table>
-<p>파일명: <code>mealy_serial_frame_fsm.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
-module mealy_serial_frame_fsm(
-    input  wire       clk,
-    input  wire       reset,
-    input  wire       w,
-    output reg  [1:0] y,
-    // 시뮬레이션 확인용 출력
-    output wire [2:0] state_dbg,
-    output wire [2:0] next_state_dbg
-);
-
-    // 상태 정의
-    localparam S0 = 3'd0;   // 수신 대기
-    localparam S1 = 3'd1;   // 첫 번째 1 수신
-    localparam S2 = 3'd2;   // 정상 프레임 완료 직전
-    localparam S3 = 3'd3;   // 10까지 수신
-    localparam S4 = 3'd4;   // 오류 프레임 확인 후 복귀 직전
-
-    reg [2:0] current_state;
-    reg [2:0] next_state;
-
-    assign state_dbg      = current_state;
-    assign next_state_dbg = next_state;
-
-    // State Register
-    always @(posedge clk) begin
-        if (reset)
-            current_state &lt;= S0;
-        else
-            current_state &lt;= next_state;
-    end
-
-    // Next State Logic + Mealy Output Logic
-    // 출력 y는 현재 상태 PS와 입력 w를 함께 보고 결정
-    always @(*) begin
-        next_state = current_state;
-        y          = 2'b00;
-
-        case (current_state)
-            S0: begin
-                if (w == 1'b0) begin
-                    next_state = S0;  y = 2'b00;   // 프레임 시작 아님
-                end
-                else begin
-                    next_state = S1;  y = 2'b10;   // 첫 번째 1 수신
-                end
-            end
-            S1: begin
-                if (w == 1'b1) begin
-                    next_state = S2;  y = 2'b10;   // 11 정상 프레임
-                end
-                else begin
-                    next_state = S3;  y = 2'b00;   // 10까지 수신
-                end
-            end
-            S3: begin
-                if (w == 1'b1) begin
-                    next_state = S2;  y = 2'b01;   // 101 정상 프레임
-                end
-                else begin
-                    next_state = S4;  y = 2'b00;   // 100 오류 프레임
-                end
-            end
-            S2: begin
-                next_state = S0;  y = 2'b11;       // 정상 완료 후 대기
-            end
-            S4: begin
-                next_state = S0;  y = 2'b01;       // 오류 처리 후 대기
-            end
-            default: begin
-                next_state = S0;  y = 2'b00;
-            end
-        endcase
-    end
-
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_mealy_serial_frame_fsm.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
-module tb_mealy_serial_frame_fsm;
-
-    reg        clk, reset, w;
-    wire [1:0] y;
-    wire [2:0] state_dbg, next_state_dbg;
-
-    mealy_serial_frame_fsm dut (
-        .clk(clk), .reset(reset), .w(w), .y(y),
-        .state_dbg(state_dbg), .next_state_dbg(next_state_dbg)
-    );
-
-    // 100MHz Clock: 10ns 주기
-    always #5 clk = ~clk;
-
-    initial begin
-        clk = 1'b0; reset = 1'b1; w = 1'b0;
-        #20;
-        reset = 1'b0;
-
-        // Case 1: 입력 11 → 출력 10, 10, 11
-        $display(&quot;Case 1 : input 11&quot;);
-        w = 1'b1; #10;   // S0 → S1, y = 10
-        w = 1'b1; #10;   // S1 → S2, y = 10
-        w = 1'b0; #10;   // S2 → S0, y = 11
-
-        reset = 1'b1; w = 1'b0; #20;
-        reset = 1'b0;           #10;
-
-        // Case 2: 입력 101 → 출력 10, 00, 01, 11
-        $display(&quot;Case 2 : input 101&quot;);
-        w = 1'b1; #10;   // S0 → S1, y = 10
-        w = 1'b0; #10;   // S1 → S3, y = 00
-        w = 1'b1; #10;   // S3 → S2, y = 01
-        w = 1'b0; #10;   // S2 → S0, y = 11
-
-        reset = 1'b1; w = 1'b0; #20;
-        reset = 1'b0;           #10;
-
-        // Case 3: 입력 100 → 출력 10, 00, 00, 01
-        $display(&quot;Case 3 : input 100&quot;);
-        w = 1'b1; #10;   // S0 → S1, y = 10
-        w = 1'b0; #10;   // S1 → S3, y = 00
-        w = 1'b0; #10;   // S3 → S4, y = 00
-        w = 1'b0; #10;   // S4 → S0, y = 01
-        #20;
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<table>
-<thead>
-<tr>
-  <th>입력 패턴</th>
-  <th>출력 흐름</th>
-  <th>의미</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><code>11</code></td>
-  <td>10 → 10 → 11</td>
-  <td>정상 완료</td>
-</tr>
-<tr>
-  <td><code>101</code></td>
-  <td>10 → 00 → 01 → 11</td>
-  <td>정상 완료</td>
-</tr>
-<tr>
-  <td><code>100</code></td>
-  <td>10 → 00 → 00 → 01</td>
-  <td>오류 복귀</td>
-</tr>
-</tbody>
-</table>
-</section><section class="section" id="s05"><h2><span class="num">05</span>Moore와 Mealy 비교</h2><table>
-<thead>
-<tr>
-  <th>구분</th>
-  <th>Moore</th>
-  <th>Mealy</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>출력 결정</td>
-  <td>현재 상태</td>
-  <td>현재 상태 + 입력</td>
-</tr>
-<tr>
-  <td>출력 표기</td>
-  <td>상태 원 안</td>
-  <td>전이 화살표 위</td>
-</tr>
-<tr>
-  <td>입력의 직접 영향</td>
-  <td>없음</td>
-  <td>있음</td>
-</tr>
-<tr>
-  <td>응답 속도</td>
-  <td>한 클록 늦을 수 있음</td>
-  <td>빠를 수 있음</td>
-</tr>
-<tr>
-  <td>출력 안정성</td>
-  <td>높음</td>
-  <td>입력에 민감</td>
-</tr>
-<tr>
-  <td>상태 수</td>
-  <td>많아질 수 있음</td>
-  <td>줄어들 수 있음</td>
-</tr>
-<tr>
-  <td>대표 용도</td>
-  <td>모드 제어, 표시 제어</td>
-  <td>조건 검출, 통신 제어</td>
-</tr>
-</tbody>
-</table>
-<p>출력 안정성이 중요하면 <strong>Moore</strong>를 우선 고려하고, 입력 조건에 즉시 반응해야 하면 <strong>Mealy</strong>를 고려합니다.</p>
-</section><section class="section" id="s06"><h2><span class="num">06</span>Moore FSM 세 가지 구현 비교</h2><p>같은 읽기 제어기를 출력 작성 방식만 바꿔 세 가지로 구현하고, 하나의 테스트벤치로 비교합니다.</p>
-<table>
-<thead>
-<tr>
-  <th>상태</th>
-  <th>의미</th>
+  <th>입력</th>
   <th>출력</th>
+  <th>핵심</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-  <td>IDLE</td>
-  <td>대기</td>
-  <td>rd=0, ds=0</td>
+  <td>부울대수 공리</td>
+  <td>SW0</td>
+  <td>LED0~3</td>
+  <td>상수와의 AND/OR</td>
 </tr>
 <tr>
-  <td>READ</td>
-  <td>읽기</td>
-  <td>rd=1</td>
+  <td>기본 논리 게이트</td>
+  <td>SW0, SW1</td>
+  <td>LED0~7</td>
+  <td>AND·OR·NOT·XOR 연산자</td>
 </tr>
 <tr>
-  <td>DLY</td>
-  <td>지연</td>
-  <td>rd=1</td>
+  <td>XOR / XNOR 심화</td>
+  <td>SW0, SW1</td>
+  <td>LED0~7</td>
+  <td>같음·다름 검출</td>
 </tr>
 <tr>
-  <td>DONE</td>
-  <td>완료</td>
-  <td>ds=1</td>
+  <td>74HC51 AOI 게이트</td>
+  <td>SW0~9</td>
+  <td>LED0~1</td>
+  <td>데이터시트 → RTL</td>
+</tr>
+<tr>
+  <td>게이트 모듈 구조화</td>
+  <td>SW0, SW1</td>
+  <td>LED0~6</td>
+  <td>Module과 Instance</td>
 </tr>
 </tbody>
 </table>
+<p>모든 실습은 같은 흐름을 따릅니다.</p>
+<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>Create Project → Verilog 작성 → XDC 작성 → Run Synthesis
+→ Run Implementation → Generate Bitstream → Program Device → 동작 확인
+</code></pre></div>
+</section><section class="section" id="s01"><h2><span class="num">01</span>부울대수 공리 실습</h2><p>부울대수(Boolean Algebra)의 기본 공리를 FPGA에서 직접 구현해, 수식이 실제 하드웨어에서 어떻게 동작하는지 확인합니다.</p>
 <table>
 <thead>
 <tr>
-  <th>PS</th>
-  <th>조건</th>
-  <th>NS</th>
+  <th>LED</th>
+  <th>논리식</th>
+  <th>이름</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-  <td>IDLE</td>
-  <td>go=0 / go=1</td>
-  <td>IDLE / READ</td>
+  <td>LED0</td>
+  <td>X·1 = X</td>
+  <td>AND 항등 법칙 (Identity)</td>
 </tr>
 <tr>
-  <td>READ</td>
-  <td>항상</td>
-  <td>DLY</td>
+  <td>LED1</td>
+  <td>X+0 = X</td>
+  <td>OR 항등 법칙 (Identity)</td>
 </tr>
 <tr>
-  <td>DLY</td>
-  <td>ws=0 / ws=1</td>
-  <td>READ / DONE</td>
+  <td>LED2</td>
+  <td>X·0 = 0</td>
+  <td>영 법칙 (Null)</td>
 </tr>
 <tr>
-  <td>DONE</td>
-  <td>항상</td>
-  <td>IDLE</td>
+  <td>LED3</td>
+  <td>X+1 = 1</td>
+  <td>지배 법칙 (Dominance)</td>
 </tr>
 </tbody>
 </table>
-<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>fsm_book_example/
-├── FSM_ex1.v      # assign 문 출력
-├── FSM_ex2.v      # 조합 always 출력
-├── FSM_ex3.v      # 출력 레지스터
-└── tb_FSM_book.v  # 공통 테스트벤치 (매크로로 DUT 선택)
-</code></pre></div>
-<p>세 모듈 모두 <strong>비동기 Active-Low 리셋(<code>rstn</code>)</strong> 을 씁니다. <code>rstn = 0</code>이면 클록과 관계없이 즉시 IDLE이 됩니다.</p>
-<p>파일명: <code>FSM_ex1.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
-// assign 문으로 출력을 생성하는 Moore FSM
-module FSM_ex1 (
-    input  clk,
-    input  rstn,
-    input  go,
-    input  ws,
-    output rd,
-    output ds
+<p>프로젝트명은 <code>boolean_axiom</code>, 보드는 Basys3(<code>xc7a35tcpg236-1</code>)입니다.</p>
+<p>파일명: <code>top.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module top(
+    input  wire [0:0] sw,
+    output wire [3:0] led
 );
 
-    parameter IDLE = 2'b00,
-              READ = 2'b01,
-              DLY  = 2'b10,
-              DONE = 2'b11;
-
-    reg [1:0] state, next;
-
-    // 상태 레지스터: rstn=0에서 초기화, 이후 상승 에지마다 next 저장
-    always @(posedge clk or negedge rstn) begin
-        if (!rstn)
-            state &lt;= IDLE;
-        else
-            state &lt;= next;
-    end
-
-    // 다음 상태 로직
-    always @(state or go or ws) begin
-        next = 2'bx;
-        case (state)
-            IDLE : if (go) next = READ;   // 시작 입력 감지
-                   else    next = IDLE;   // 대기 유지
-            READ :         next = DLY;    // 읽기 후 지연
-            DLY  : if (ws) next = DONE;   // 대기 완료
-                   else    next = READ;   // 읽기 반복
-            DONE :         next = IDLE;   // 완료 후 대기 복귀
-        endcase
-    end
-
-    // 출력 로직: 현재 state만 기준
-    assign rd = ((state == READ) || (state == DLY));
-    assign ds = (state == DONE);
+    assign led[0] = sw[0] &amp; 1'b1;   // X · 1 = X
+    assign led[1] = sw[0] | 1'b0;   // X + 0 = X
+    assign led[2] = sw[0] &amp; 1'b0;   // X · 0 = 0
+    assign led[3] = sw[0] | 1'b1;   // X + 1 = 1
 
 endmodule
 </code></pre></div>
-<p>파일명: <code>FSM_ex2.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
-// always 조합회로 블록에서 출력을 생성하는 Moore FSM
-module FSM_ex2 (
-    input      clk,
-    input      rstn,
-    input      go,
-    input      ws,
-    output reg rd,
-    output reg ds
+<p>파일명: <code>Basys3_Master.xdc</code></p>
+<div class="codeblock"><div class="codebar"><span>tcl</span></div><pre><code>set_property PACKAGE_PIN V17 [get_ports {sw[0]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {sw[0]}]
+
+set_property PACKAGE_PIN U16 [get_ports {led[0]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {led[0]}]
+set_property PACKAGE_PIN E19 [get_ports {led[1]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {led[1]}]
+set_property PACKAGE_PIN U19 [get_ports {led[2]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {led[2]}]
+set_property PACKAGE_PIN V19 [get_ports {led[3]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {led[3]}]
+</code></pre></div>
+<p>예상 결과:</p>
+<table>
+<thead>
+<tr>
+  <th style="text-align:center">SW0</th>
+  <th style="text-align:center">LED0</th>
+  <th style="text-align:center">LED1</th>
+  <th style="text-align:center">LED2</th>
+  <th style="text-align:center">LED3</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+</tr>
+<tr>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+</tr>
+</tbody>
+</table>
+<p>LED0·LED1은 입력을 그대로 따라가고, LED2는 항상 꺼져 있으며, LED3은 항상 켜져 있습니다.</p>
+<p><strong>생각해 보기</strong></p>
+<ol>
+<li>왜 X·0은 항상 0인가?</li>
+<li>왜 X+1은 항상 1인가?</li>
+<li>Vivado의 합성 결과에서 LED2·LED3에는 어떤 회로가 남는가?</li>
+</ol>
+</section><section class="section" id="s02"><h2><span class="num">02</span>모듈명과 비트 표기</h2><p><strong>모듈명 규칙</strong></p>
+<p>Verilog에서 회로 단위는 <code>module</code>이며, 모듈명으로 회로 블록을 구분합니다. Vivado는 모듈명을 기준으로 Top Module 지정, 계층 분석, 합성·구현을 수행합니다.</p>
+<table>
+<thead>
+<tr>
+  <th>규칙</th>
+  <th>올바른 예</th>
+  <th>잘못된 예</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>영문·숫자·<code>_</code>만 사용</td>
+  <td><code>led_controller</code></td>
+  <td><code>led-controller</code></td>
+</tr>
+<tr>
+  <td>숫자로 시작 금지</td>
+  <td><code>adder_4bit</code></td>
+  <td><code>4bit_adder</code></td>
+</tr>
+<tr>
+  <td>공백 금지</td>
+  <td><code>uart_tx</code></td>
+  <td><code>uart tx</code></td>
+</tr>
+<tr>
+  <td>대소문자 구분</td>
+  <td><code>top</code> ≠ <code>Top</code></td>
+  <td></td>
+</tr>
+<tr>
+  <td>파일명 = 모듈명</td>
+  <td><code>counter.v</code> ↔ <code>module counter</code></td>
+  <td>이름이 다르면 오류가 잦음</td>
+</tr>
+</tbody>
+</table>
+<p>입문 실습에서는 <code>top.v</code> ↔ <code>module top</code>이 가장 단순하고, 심화 과정에서는 기능별 파일(<code>counter.v</code>, <code>decoder.v</code>, <code>uart_tx.v</code>)로 나눕니다. 이름은 <code>snake_case</code>(<code>clock_divider</code>, <code>sevenseg_decoder</code>)를 권장합니다.</p>
+<p><strong>비트 값 표기</strong> — <code>비트수'진법값</code></p>
+<table>
+<thead>
+<tr>
+  <th>표기</th>
+  <th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>1'b1</code>, <code>1'b0</code></td>
+  <td>1비트 이진값 1, 0</td>
+</tr>
+<tr>
+  <td><code>4'b1010</code></td>
+  <td>4비트 이진값 1010</td>
+</tr>
+<tr>
+  <td><code>8'b0000_1111</code></td>
+  <td>8비트 이진값, <code>_</code>는 가독성용 구분자</td>
+</tr>
+<tr>
+  <td><code>4'd10</code></td>
+  <td>4비트 10진수 10</td>
+</tr>
+<tr>
+  <td><code>4'hA</code>, <code>8'hFF</code></td>
+  <td>16진수 값</td>
+</tr>
+</tbody>
+</table>
+</section><section class="section" id="s03"><h2><span class="num">03</span>기본 논리 게이트</h2><p>논리 게이트는 입력·출력·논리 연산으로 구성된 디지털 시스템의 기본 스위칭 소자입니다. 게이트를 조합해 <strong>현재 입력만으로 출력이 즉시 결정되는</strong> 조합논리회로(가산기, 비교기, MUX, 디코더)를 만듭니다. 진리표(Truth Table)는 입력 변화에 따른 출력을 정리한 표이며, 0은 LOW, 1은 HIGH를 뜻합니다.</p>
+<table>
+<thead>
+<tr>
+  <th>게이트</th>
+  <th>논리식</th>
+  <th>출력이 1이 되는 조건</th>
+  <th>쓰임</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>AND</td>
+  <td>Y = A·B</td>
+  <td>모두 1</td>
+  <td>인터록(비밀번호 + 지문)</td>
+</tr>
+<tr>
+  <td>OR</td>
+  <td>Y = A+B</td>
+  <td>하나라도 1</td>
+  <td>경보(화재 또는 침입)</td>
+</tr>
+<tr>
+  <td>NOT</td>
+  <td>Y = A'</td>
+  <td>입력이 0</td>
+  <td>인버터, 두 번 반전하면 원래 값</td>
+</tr>
+<tr>
+  <td>BUFFER</td>
+  <td>Y = A</td>
+  <td>입력이 1</td>
+  <td>파형 정형·전류 증대·지연, FPGA의 BUFG·I/O 버퍼</td>
+</tr>
+<tr>
+  <td>NAND</td>
+  <td>Y = (A·B)'</td>
+  <td>모두 1일 때만 0</td>
+  <td><strong>범용 게이트</strong></td>
+</tr>
+<tr>
+  <td>NOR</td>
+  <td>Y = (A+B)'</td>
+  <td>모두 0일 때만 1</td>
+  <td>범용 게이트</td>
+</tr>
+<tr>
+  <td>XOR</td>
+  <td>Y = A⊕B</td>
+  <td>서로 다름</td>
+  <td>덧셈기, 패리티</td>
+</tr>
+<tr>
+  <td>XNOR</td>
+  <td>Y = (A⊕B)'</td>
+  <td>서로 같음</td>
+  <td>동등 비교기</td>
+</tr>
+</tbody>
+</table>
+<p><strong>진리표</strong></p>
+<table>
+<thead>
+<tr>
+  <th style="text-align:center">A</th>
+  <th style="text-align:center">B</th>
+  <th style="text-align:center">AND</th>
+  <th style="text-align:center">OR</th>
+  <th style="text-align:center">NAND</th>
+  <th style="text-align:center">NOR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+</tr>
+<tr>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
+</tr>
+<tr>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
+</tr>
+<tr>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">0</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+  <th style="text-align:center">A</th>
+  <th style="text-align:center">B</th>
+  <th style="text-align:center">XOR</th>
+  <th style="text-align:center">XNOR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+</tr>
+<tr>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
+</tr>
+<tr>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
+</tr>
+<tr>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+</tr>
+</tbody>
+</table>
+<p>NAND만으로 AND·OR·NOT·XOR·플립플롭까지 모든 디지털 회로를 만들 수 있어 실제 IC 내부에서 매우 많이 쓰입니다. 게이트 기호의 작은 동그라미 <strong>버블(Bubble)</strong> 은 반전을 뜻하며, 출력 버블은 출력 반전, 입력 버블은 입력 반전입니다.</p>
+<p><img src="images/ch02/gate_and_or.png" alt="AND OR 게이트 기호와 진리표" />
+<em>그림 2-1. AND·OR 게이트 기호와 진리표 (출처: 원 강의자료)</em></p>
+<p><img src="images/ch02/gate_not_buffer.png" alt="NOT 버퍼 기호와 진리표" />
+<em>그림 2-2. NOT 게이트와 버퍼 (출처: 원 강의자료)</em></p>
+<p><img src="images/ch02/gate_nand_nor.png" alt="NAND NOR 기호와 진리표" />
+<em>그림 2-3. NAND·NOR 게이트 (출처: 원 강의자료)</em></p>
+</section><section class="section" id="s04"><h2><span class="num">04</span>논리 게이트 FPGA 실습</h2><p>SW0을 X, SW1을 Y로 두고 여덟 가지 게이트 결과를 LED에 동시에 표시합니다. 프로젝트명은 <code>logic_gate_practice</code>입니다.</p>
+<table>
+<thead>
+<tr>
+  <th>LED</th>
+  <th>논리식</th>
+  <th>게이트</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>LED0</td>
+  <td>X·Y</td>
+  <td>AND</td>
+</tr>
+<tr>
+  <td>LED1</td>
+  <td>X+Y</td>
+  <td>OR</td>
+</tr>
+<tr>
+  <td>LED2</td>
+  <td>X'</td>
+  <td>NOT X</td>
+</tr>
+<tr>
+  <td>LED3</td>
+  <td>Y'</td>
+  <td>NOT Y</td>
+</tr>
+<tr>
+  <td>LED4</td>
+  <td>(X·Y)'</td>
+  <td>NAND</td>
+</tr>
+<tr>
+  <td>LED5</td>
+  <td>(X+Y)'</td>
+  <td>NOR</td>
+</tr>
+<tr>
+  <td>LED6</td>
+  <td>X</td>
+  <td>BUFFER</td>
+</tr>
+<tr>
+  <td>LED7</td>
+  <td>X⊕Y</td>
+  <td>XOR</td>
+</tr>
+</tbody>
+</table>
+<p>파일명: <code>top.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module top(
+    input  wire [1:0] sw,
+    output wire [7:0] led
 );
 
-    parameter IDLE = 2'b00,
-              READ = 2'b01,
-              DLY  = 2'b10,
-              DONE = 2'b11;
-
-    reg [1:0] state, next;
-
-    // 상태 레지스터
-    always @(posedge clk or negedge rstn) begin
-        if (!rstn)
-            state &lt;= IDLE;
-        else
-            state &lt;= next;
-    end
-
-    // 다음 상태 + 출력 로직 (조합회로): 모든 출력에 기본값 먼저 지정
-    always @(state or go or ws) begin
-        next = 2'bx;
-        rd   = 1'b0;
-        ds   = 1'b0;
-        case (state)
-            IDLE : begin
-                if (go) next = READ;
-                else    next = IDLE;
-            end
-            READ : begin
-                rd   = 1'b1;            // READ 상태 출력
-                next = DLY;
-            end
-            DLY : begin
-                rd = 1'b1;              // DLY 상태 출력
-                if (ws) next = DONE;
-                else    next = READ;
-            end
-            DONE : begin
-                ds   = 1'b1;            // 완료 출력
-                next = IDLE;
-            end
-        endcase
-    end
+    assign led[0] = sw[0] &amp; sw[1];      // AND
+    assign led[1] = sw[0] | sw[1];      // OR
+    assign led[2] = ~sw[0];             // NOT X
+    assign led[3] = ~sw[1];             // NOT Y
+    assign led[4] = ~(sw[0] &amp; sw[1]);   // NAND
+    assign led[5] = ~(sw[0] | sw[1]);   // NOR
+    assign led[6] = sw[0];              // BUFFER
+    assign led[7] = sw[0] ^ sw[1];      // XOR
 
 endmodule
 </code></pre></div>
-<p>파일명: <code>FSM_ex3.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
-// 출력 레지스터를 사용하는 Moore FSM
-module FSM_ex3 (
-    input      clk,
-    input      rstn,
-    input      go,
-    input      ws,
-    output reg rd,
-    output reg ds
+<p>파일명: <code>Basys3_Master.xdc</code></p>
+<div class="codeblock"><div class="codebar"><span>tcl</span></div><pre><code>set_property PACKAGE_PIN V17 [get_ports {sw[0]}]
+set_property PACKAGE_PIN V16 [get_ports {sw[1]}]
+set_property PACKAGE_PIN U16 [get_ports {led[0]}]
+set_property PACKAGE_PIN E19 [get_ports {led[1]}]
+set_property PACKAGE_PIN U19 [get_ports {led[2]}]
+set_property PACKAGE_PIN V19 [get_ports {led[3]}]
+set_property PACKAGE_PIN W18 [get_ports {led[4]}]
+set_property PACKAGE_PIN U15 [get_ports {led[5]}]
+set_property PACKAGE_PIN U14 [get_ports {led[6]}]
+set_property PACKAGE_PIN V14 [get_ports {led[7]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {sw[*] led[*]}]
+</code></pre></div>
+<p>예상 결과(열 제목은 입력 XY):</p>
+<table>
+<thead>
+<tr>
+  <th>LED</th>
+  <th>게이트</th>
+  <th style="text-align:center">00</th>
+  <th style="text-align:center">01</th>
+  <th style="text-align:center">10</th>
+  <th style="text-align:center">11</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>LED0</td>
+  <td>AND</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+</tr>
+<tr>
+  <td>LED1</td>
+  <td>OR</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+</tr>
+<tr>
+  <td>LED2</td>
+  <td>NOT X</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">0</td>
+</tr>
+<tr>
+  <td>LED3</td>
+  <td>NOT Y</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
+</tr>
+<tr>
+  <td>LED4</td>
+  <td>NAND</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
+</tr>
+<tr>
+  <td>LED5</td>
+  <td>NOR</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">0</td>
+</tr>
+<tr>
+  <td>LED6</td>
+  <td>BUFFER</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+</tr>
+<tr>
+  <td>LED7</td>
+  <td>XOR</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
+</tr>
+</tbody>
+</table>
+<p><strong>결과 분석 질문</strong></p>
+<ol>
+<li>AND와 OR의 출력 조건은 어떻게 다른가?</li>
+<li>NAND와 AND, NOR와 OR의 관계를 설명하시오.</li>
+<li>XOR는 어떤 경우에 1이 되는가?</li>
+<li>입력을 그대로 내보내는 Buffer를 실제 회로에서 왜 사용하는가?</li>
+</ol>
+</section><section class="section" id="s05"><h2><span class="num">05</span>XOR과 XNOR 심화</h2><p>XOR은 <strong>두 입력이 다를 때</strong>, XNOR은 <strong>두 입력이 같을 때</strong> 1을 냅니다. 같은 식을 여러 방식으로 표현해 결과가 모두 일치하는지 확인합니다. 프로젝트명은 <code>xor_xnor_practice</code>입니다.</p>
+<p>파일명: <code>top.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module top(
+    input  wire [1:0] sw,
+    output wire [7:0] led
 );
 
-    parameter IDLE = 2'b00,
-              READ = 2'b01,
-              DLY  = 2'b10,
-              DONE = 2'b11;
+    // 기본 XOR / XNOR
+    assign led[0] = sw[0] ^ sw[1];
+    assign led[1] = ~(sw[0] ^ sw[1]);
 
-    reg [1:0] state, next;
+    // 곱의 합(SOP)으로 풀어 쓴 XOR / XNOR
+    assign led[2] = (sw[0] &amp; ~sw[1]) | (~sw[0] &amp; sw[1]);
+    assign led[3] = (sw[0] &amp; sw[1]) | (~sw[0] &amp; ~sw[1]);
 
-    // 상태 레지스터
-    always @(posedge clk or negedge rstn) begin
-        if (!rstn)
-            state &lt;= IDLE;
-        else
-            state &lt;= next;
-    end
+    // 비교 연산: 두 입력이 같으면 1
+    assign led[4] = (sw[0] == sw[1]);
 
-    // 다음 상태 로직
-    always @(state or go or ws) begin
-        next = 2'bx;
-        case (state)
-            IDLE : if (go) next = READ;
-                   else    next = IDLE;
-            READ :         next = DLY;
-            DLY  : if (ws) next = DONE;
-                   else    next = READ;
-            DONE :         next = IDLE;
-        endcase
-    end
+    // XOR 반전 = XNOR, XNOR 반전 = XOR
+    assign led[5] = ~led[0];
+    assign led[6] = ~led[1];
 
-    // 출력 레지스터: next 기준으로 저장해 상태 전이와 출력 타이밍을 맞춤
-    always @(posedge clk or negedge rstn) begin
-        if (!rstn) begin
-            ds &lt;= 1'b0;
-            rd &lt;= 1'b0;
-        end
-        else begin
-            ds &lt;= 1'b0;     // 기본값
-            rd &lt;= 1'b0;
-            case (next)
-                READ : rd &lt;= 1'b1;
-                DLY  : rd &lt;= 1'b1;
-                DONE : ds &lt;= 1'b1;
-            endcase
-        end
-    end
+    // Buffer
+    assign led[7] = sw[0];
 
 endmodule
 </code></pre></div>
-<p><code>next = 2'bx;</code>는 &quot;모든 경우를 case에서 정한다&quot;는 뜻으로, 합성기가 남는 조합을 자유롭게 최적화하도록 돕습니다. 네 상태를 모두 다루므로 실제로 <code>x</code>가 남지 않습니다.</p>
+<p>XDC는 앞 실습과 같습니다.</p>
 <table>
 <thead>
 <tr>
-  <th>구분</th>
-  <th>FSM_ex1</th>
-  <th>FSM_ex2</th>
-  <th>FSM_ex3</th>
+  <th>LED</th>
+  <th>의미</th>
+  <th style="text-align:center">A≠B일 때</th>
+  <th style="text-align:center">A=B일 때</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-  <td>출력 생성</td>
-  <td><code>assign</code></td>
-  <td>조합 <code>always</code></td>
-  <td>순차 <code>always</code></td>
+  <td>LED0</td>
+  <td>XOR</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
 </tr>
 <tr>
-  <td>출력 기준</td>
-  <td><code>state</code></td>
-  <td><code>state</code></td>
-  <td><code>next</code></td>
+  <td>LED1</td>
+  <td>XNOR</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
 </tr>
 <tr>
-  <td>출력 타입</td>
-  <td>wire</td>
-  <td>reg</td>
-  <td>reg</td>
+  <td>LED2</td>
+  <td>XOR 분해식</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
 </tr>
 <tr>
-  <td>출력 안정성</td>
-  <td>보통</td>
-  <td>보통</td>
-  <td>높음 (글리치 없음)</td>
+  <td>LED3</td>
+  <td>XNOR 분해식</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
 </tr>
 <tr>
-  <td>장점</td>
-  <td>짧고 간단</td>
-  <td>상태별 출력·전이를 한곳에서 확인</td>
-  <td>출력이 클록에 맞춰 안정</td>
+  <td>LED4</td>
+  <td><code>==</code> 비교</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
 </tr>
 <tr>
-  <td>주의</td>
-  <td>조건이 복잡하면 가독성 저하</td>
-  <td>출력 기본값 필수</td>
-  <td>클록 기준 타이밍 확인</td>
+  <td>LED5</td>
+  <td>XOR 반전</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+</tr>
+<tr>
+  <td>LED6</td>
+  <td>XNOR 반전</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
 </tr>
 </tbody>
 </table>
-</section><section class="section" id="s07"><h2><span class="num">07</span>공통 테스트벤치와 Icarus Verilog</h2><p><code>`ifdef</code>로 컴파일할 때 검증할 DUT를 고릅니다.</p>
-<p>파일명: <code>tb_FSM_book.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
-// FSM_ex1, FSM_ex2, FSM_ex3 공통 테스트벤치
-module tb_FSM_book;
+<p>XOR은 <strong>다름 검출기(Different Detector)</strong>, XNOR은 <strong>동등 검출기(Equality Detector)</strong> 입니다. CPU 비교 연산, 메모리 ECC, UART 패리티, ALU 덧셈기, 암호 회로의 데이터 비교에 쓰입니다. Verilog에서 XNOR은 <code>~^</code> 또는 <code>^~</code>로도 쓸 수 있습니다.</p>
+</section><section class="section" id="s06"><h2><span class="num">06</span>슬라이드로 보는 assign과 게이트</h2><p>강의 슬라이드로 <code>assign</code> 연결과 기본 게이트를 회로도·코드·파형과 함께 정리합니다.</p>
+<p><img src="images/ch02/slide_02_constant_logic_1.jpg" alt="항상 1을 출력하는 모듈 슬라이드" />
+<em>그림 2-4. 상수 출력 1 — <code>assign one = 1'b1;</code></em></p>
+<p><img src="images/ch02/slide_03_constant_logic_0.jpg" alt="항상 0을 출력하는 모듈 슬라이드" />
+<em>그림 2-5. 상수 출력 0 — <code>assign zero = 1'b0;</code></em></p>
+<p><img src="images/ch02/slide_04_wire_connection.jpg" alt="입력을 출력으로 연결하는 wire 슬라이드" />
+<em>그림 2-6. 입력을 그대로 출력으로 — <code>assign out = in;</code></em></p>
+<p><img src="images/ch02/slide_05_wire_connection2.jpg" alt="3입력 4출력 연결 슬라이드" />
+<em>그림 2-7. 3입력 4출력 연결</em></p>
+<p><img src="images/ch02/slide_06_not_gate.jpg" alt="NOT 게이트 슬라이드" />
+<em>그림 2-8. NOT 게이트와 파형</em></p>
+<p><img src="images/ch02/slide_07_and_gate.jpg" alt="AND 게이트 슬라이드" />
+<em>그림 2-9. AND 게이트와 파형</em></p>
+<p><img src="images/ch02/slide_08_nor_gate.jpg" alt="NOR 게이트 슬라이드" />
+<em>그림 2-10. NOR 게이트와 파형</em></p>
+<p><img src="images/ch02/slide_09_xnor_gate.jpg" alt="XNOR 게이트 슬라이드" />
+<em>그림 2-11. XNOR 게이트와 파형</em></p>
+<p><img src="images/ch02/slide_10_wire_declaration.jpg" alt="중간 wire 선언 슬라이드" />
+<em>그림 2-12. 중간 신호 wire 선언과 <code>default_nettype none</code></em></p>
+</section><section class="section" id="s07"><h2><span class="num">07</span>Verilog 연산자와 벡터</h2><p><strong>비트 연산자</strong> — 비트마다 따로 계산합니다.</p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>// a = 4'b1010, b = 4'b1100
+~a        // NOT  → 4'b0101
+a &amp; b     // AND  → 4'b1000
+a | b     // OR   → 4'b1110
+a ^ b     // XOR  → 4'b0110
+a ~^ b    // XNOR → 4'b1001
+</code></pre></div>
+<p><strong>축약 연산자(Reduction)</strong> — 벡터 전체를 1비트로 줄입니다.</p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>// a = 4'b1010
+&amp;a        // 모든 비트가 1이면 1       → 0
+|a        // 하나라도 1이면 1          → 1
+^a        // 1의 개수가 홀수이면 1      → 0
+~&amp;a       // NAND 축약                 → 1
+~|a       // NOR 축약                  → 0
+~^a       // XNOR 축약                 → 1
+</code></pre></div>
+<p><strong>비트 연산과 논리 연산 구분</strong></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>a &amp; b     // 비트별 AND  → 4'b1000 (벡터)
+a &amp;&amp; b    // 논리 AND    → 1'b1   (참/거짓)
+a | b     // 비트별 OR
+a || b    // 논리 OR
+~a        // 비트 반전
+!a        // 논리 부정
+</code></pre></div>
+<p><code>a &amp; b</code>는 <code>4'b1000</code>이지만, <code>a &amp;&amp; b</code>는 a와 b가 모두 0이 아니므로 <code>1'b1</code>입니다. 비트 연산은 마스크·레지스터 제어·ALU에, 논리 연산은 <code>if</code> 조건·FSM 조건 판단에 주로 씁니다.</p>
+<p><strong>벡터(Vector)</strong></p>
+<p>벡터는 여러 비트를 하나로 묶은 버스입니다. <code>[MSB:LSB]</code> 순서로 선언하며 왼쪽이 상위 비트입니다.</p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>wire   [7:0] w;     // 8비트 wire
+reg    [4:1] x;     // 4비트 reg (인덱스 4~1)
+output [3:0] a;     // 4비트 출력
+input  [2:0] vec;   // 3비트 입력, vec[2] vec[1] vec[0]으로 개별 접근
 
-    reg  clk, rstn, go, ws;
-    wire rd, ds;
-
-    // DUT 선택: TEST_EX1, TEST_EX2, TEST_EX3 중 하나를 정의
-`ifdef TEST_EX1
-    FSM_ex1 dut (.clk(clk), .rstn(rstn), .go(go), .ws(ws), .rd(rd), .ds(ds));
-`elsif TEST_EX2
-    FSM_ex2 dut (.clk(clk), .rstn(rstn), .go(go), .ws(ws), .rd(rd), .ds(ds));
-`elsif TEST_EX3
-    FSM_ex3 dut (.clk(clk), .rstn(rstn), .go(go), .ws(ws), .rd(rd), .ds(ds));
-`else
-    initial begin
-        $display(&quot;ERROR: Define TEST_EX1, TEST_EX2, or TEST_EX3&quot;);
-        $finish;
-    end
-`endif
-
-    // 10ns 주기(100MHz) Clock
-    initial begin
-        clk = 1'b0;
-        forever #5 clk = ~clk;
-    end
-
-    // 입력 시나리오
-    initial begin
-        rstn = 1'b0; go = 1'b0; ws = 1'b0;   // reset 활성화
-        #20;
-        rstn = 1'b1;                         // reset 해제
-        #20;
-        go = 1'b0; ws = 1'b0;                // IDLE 유지
-        #20;
-        go = 1'b1;                           // IDLE → READ
-        #10;
-        go = 1'b0;                           // go 펄스 종료
-        #40;
-        ws = 1'b0;                           // DLY → READ 반복
-        #20;
-        ws = 1'b1;                           // DLY → DONE
-        #20;
-        ws = 1'b0;                           // DONE 이후 IDLE
-        #30;
-        $finish;
-    end
-
-    // GTKWave용 파형 파일
-    initial begin
-        $dumpfile(&quot;tb_FSM_book.vcd&quot;);
-        $dumpvars(0, tb_FSM_book);
-    end
-
-    // 콘솔 출력
-    initial begin
-        $monitor(&quot;time=%0t | rstn=%b go=%b ws=%b | rd=%b ds=%b&quot;,
-                 $time, rstn, go, ws, rd, ds);
-    end
-
+reg [7:0] mem [255:0];  // 8비트 데이터 256개를 담는 메모리(Packed + Unpacked)
+</code></pre></div>
+<ul>
+<li>선언 방향과 사용 방향을 일치시킵니다(<code>wire [3:0] w;</code>이면 <code>w[3:0]</code>으로 사용).</li>
+<li>폭이 다른 벡터를 대입하면 남는 상위 비트는 0으로 채워집니다(<code>wire [7:0] w = 4비트 값</code>).</li>
+<li><code>default_nettype none</code>을 맨 위에 두면 선언하지 않은 이름이 wire로 자동 생성되지 않아 오타를 바로 찾을 수 있습니다.</li>
+</ul>
+</section><section class="section" id="s08"><h2><span class="num">08</span>벡터 활용 예제</h2><p><strong>16비트 입력을 상위·하위 바이트로 분리</strong></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`default_nettype none
+module top_module(
+    input  wire [15:0] in,
+    output wire [7:0]  out_hi,
+    output wire [7:0]  out_lo
+);
+    assign out_hi = in[15:8];   // 상위 8비트
+    assign out_lo = in[7:0];    // 하위 8비트
 endmodule
 </code></pre></div>
-<p><strong>Ubuntu에서 Icarus Verilog로 실행</strong></p>
-<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># Icarus Verilog와 파형 뷰어 설치
-sudo apt install -y iverilog gtkwave
-
-# FSM_ex1 검증: -D로 매크로 정의 → 컴파일 → 실행
-iverilog -D TEST_EX1 -o sim_ex1 FSM_ex1.v tb_FSM_book.v
-vvp sim_ex1
-
-# 같은 방식으로 EX2, EX3 검증
-iverilog -D TEST_EX2 -o sim_ex2 FSM_ex2.v tb_FSM_book.v &amp;&amp; vvp sim_ex2
-iverilog -D TEST_EX3 -o sim_ex3 FSM_ex3.v tb_FSM_book.v &amp;&amp; vvp sim_ex3
-
-# 파형 확인
-gtkwave tb_FSM_book.vcd
+<p><strong>바이트 순서 뒤집기(Byte Swap)</strong></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module top_module(
+    input  [31:0] in,
+    output [31:0] out
+);
+    assign out[31:24] = in[7:0];
+    assign out[23:16] = in[15:8];
+    assign out[15:8]  = in[23:16];
+    assign out[7:0]   = in[31:24];
+endmodule
 </code></pre></div>
-<table>
-<thead>
-<tr>
-  <th>구간</th>
-  <th>조건</th>
-  <th>확인 내용</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>Reset</td>
-  <td>rstn=0</td>
-  <td>초기화</td>
-</tr>
-<tr>
-  <td>대기</td>
-  <td>go=0</td>
-  <td>IDLE 유지</td>
-</tr>
-<tr>
-  <td>시작</td>
-  <td>go=1</td>
-  <td>READ 진입</td>
-</tr>
-<tr>
-  <td>읽기</td>
-  <td>READ, DLY</td>
-  <td>rd=1</td>
-</tr>
-<tr>
-  <td>완료</td>
-  <td>DONE</td>
-  <td>ds=1</td>
-</tr>
-<tr>
-  <td>복귀</td>
-  <td>DONE 이후</td>
-  <td>IDLE 복귀</td>
-</tr>
-</tbody>
-</table>
-<p>EX1·EX2는 상태가 바뀐 직후 출력이 바뀌고, EX3는 <code>next</code>를 클록에 맞춰 저장하므로 출력이 <strong>상태와 같은 에지</strong>에서 바뀝니다. 세 결과의 <code>rd</code>·<code>ds</code> 파형을 나란히 비교해 보세요.</p>
-</section><section class="section" id="s08"><h2><span class="num">08</span>Mealy FSM 연속 비트 검출기</h2><p>1비트 직렬 입력 <code>din_bit</code>에서 <strong>같은 값이 두 번 이상 연속(00 또는 11)</strong> 되면 <code>dout_bit = 1</code>을 내는 Mealy 시퀀스 검출기입니다.</p>
-<table>
-<thead>
-<tr>
-  <th>신호</th>
-  <th>방향</th>
-  <th>설명</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><code>clk</code></td>
-  <td>input</td>
-  <td>클록</td>
-</tr>
-<tr>
-  <td><code>rst</code></td>
-  <td>input</td>
-  <td>비동기 리셋 (Active High)</td>
-</tr>
-<tr>
-  <td><code>din_bit</code></td>
-  <td>input</td>
-  <td>1비트 직렬 입력</td>
-</tr>
-<tr>
-  <td><code>dout_bit</code></td>
-  <td>output</td>
-  <td>연속 0 또는 연속 1 검출</td>
-</tr>
-</tbody>
-</table>
-<table>
-<thead>
-<tr>
-  <th style="text-align:center">직전 입력</th>
-  <th style="text-align:center">현재 입력</th>
-  <th style="text-align:center">출력</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-</tr>
-<tr>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-</tr>
-</tbody>
-</table>
-<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>START ─0→ RD0_ONCE ─0→ RD0_TWICE ─0→ RD0_TWICE
-  │          │1            │1
-  1          ▼             ▼
-  └───→ RD1_ONCE ─1→ RD1_TWICE ─1→ RD1_TWICE
-           │0            │0
-           ▼             ▼
-        RD0_ONCE      RD0_ONCE
+<p><strong>비트 순서 뒤집기(Bit Reverse)</strong> — 결합 연산자 <code>{ }</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module top_module(
+    input  [7:0] in,
+    output [7:0] out
+);
+    // in[0]이 out의 MSB가 되도록 나열
+    assign out = {in[0], in[1], in[2], in[3], in[4], in[5], in[6], in[7]};
+endmodule
 </code></pre></div>
-<p>파일명: <code>seq_det_mealy.v</code></p>
+<p><strong>반복 연산자와 부호 확장(Sign Extension)</strong> — <code>{n{vector}}</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module top_module(
+    input  [7:0]  in,
+    output [31:0] out
+);
+    // 부호 비트 in[7]을 24번 반복해 32비트로 확장
+    assign out = {{24{in[7]}}, in};
+endmodule
+</code></pre></div>
+<p><code>8'b0000_0101</code>(+5)은 앞이 0으로, <code>8'b1111_1101</code>(−3)은 앞이 1로 채워져 값의 부호가 유지됩니다. CPU ALU에서 자주 쓰는 기법입니다.</p>
+<p><strong>축약 연산자 예제</strong></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module top_module(
+    input  [3:0] in,
+    output       out_and,
+    output       out_or,
+    output       out_xor
+);
+    assign out_and = &amp;in;   // 4입력 AND
+    assign out_or  = |in;   // 4입력 OR
+    assign out_xor = ^in;   // 4입력 XOR (패리티)
+endmodule
+</code></pre></div>
+<p><strong>중간 신호 wire 선언</strong></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`default_nettype none
+module top_module(
+    input  wire a, b, c, d,
+    output wire out,
+    output wire out_n
+);
+    wire and1, and2;          // 내부 연결선
+
+    assign and1  = a &amp; b;
+    assign and2  = c &amp; d;
+    assign out   = and1 | and2;
+    assign out_n = ~out;
+endmodule
+</code></pre></div>
+<p>wire는 하나의 드라이버(구동원)만 가질 수 있지만, 여러 게이트의 입력으로는 얼마든지 연결할 수 있습니다.</p>
+<p><strong>슬라이드로 보는 벡터 연산</strong></p>
+<p><img src="images/ch02/slide_v02_vector_1.jpg" alt="벡터 기본 슬라이드" />
+<em>그림 2-13. 벡터: 여러 wire를 하나로 묶은 버스</em></p>
+<p><img src="images/ch02/slide_v03_vector_2_declare.jpg" alt="벡터 선언 슬라이드" />
+<em>그림 2-14. 벡터 선언 — Packed·Unpacked Array</em></p>
+<p><img src="images/ch02/slide_v04_vector_2_access.jpg" alt="벡터 부분 선택 슬라이드" />
+<em>그림 2-15. 부분 선택과 크기가 다른 벡터 대입</em></p>
+<p><img src="images/ch02/slide_v05_vector_split.jpg" alt="16비트 분리 슬라이드" />
+<em>그림 2-16. 입력 벡터 분리와 파형</em></p>
+<p><img src="images/ch02/slide_v06_vector_byte_swap.jpg" alt="바이트 스왑 슬라이드" />
+<em>그림 2-17. 바이트 순서 뒤집기와 파형</em></p>
+<p><img src="images/ch02/slide_v07_bitwise_vs_logical.jpg" alt="비트 OR와 논리 OR 슬라이드" />
+<em>그림 2-18. Bitwise OR vs Logical OR</em></p>
+<p><img src="images/ch02/slide_v08_reduction_operator.jpg" alt="축약 연산자 슬라이드" />
+<em>그림 2-19. 축약 연산자와 파형</em></p>
+<p><img src="images/ch02/slide_v09_bit_reverse.jpg" alt="비트 반전 순서 슬라이드" />
+<em>그림 2-20. Bit Reverse와 파형</em></p>
+<p><img src="images/ch02/slide_v10_replication_operator.jpg" alt="반복 연산자 슬라이드" />
+<em>그림 2-21. 반복 연산자와 부호 확장</em></p>
+</section><section class="section" id="s09"><h2><span class="num">09</span>과제 74HC51 AOI 게이트</h2><p>74 시리즈 IC의 데이터시트를 찾아 내부 논리를 Verilog로 옮기는 과제입니다. 74HC51은 <strong>AND-OR-INVERT(AOI)</strong> 게이트 두 개를 담은 IC입니다(데이터시트 검색: <a href="https://www.alldatasheet.co.kr/">alldatasheet.co.kr</a>).</p>
+<p><img src="images/ch02/slide_11_hc51_task.jpg" alt="74HC51 과제 개요 슬라이드" />
+<em>그림 2-22. 74HC51 제작 과제 — 데이터시트 검색과 제작 순서</em></p>
+<p><img src="images/ch02/slide_12_hc51_pinmap_xdc.jpg" alt="74HC51 논리식과 핀 연결 슬라이드" />
+<em>그림 2-23. 74HC51 논리식 · 핀 연결 · XDC</em></p>
+<table>
+<thead>
+<tr>
+  <th>출력</th>
+  <th>논리식</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>1Y</td>
+  <td>(1A·1B·1C + 1D·1E·1F)'</td>
+</tr>
+<tr>
+  <td>2Y</td>
+  <td>(2A·2B + 2C·2D)'</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+  <th>74HC51 신호</th>
+  <th>Basys3</th>
+  <th>핀</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>1A, 1B, 1C</td>
+  <td>SW0, SW1, SW2</td>
+  <td>V17, V16, W16</td>
+</tr>
+<tr>
+  <td>1D, 1E, 1F</td>
+  <td>SW3, SW4, SW5</td>
+  <td>W17, W15, V15</td>
+</tr>
+<tr>
+  <td>2A, 2B</td>
+  <td>SW6, SW7</td>
+  <td>W14, W13</td>
+</tr>
+<tr>
+  <td>2C, 2D</td>
+  <td>SW8, SW9</td>
+  <td>V2, T3</td>
+</tr>
+<tr>
+  <td>1Y</td>
+  <td>LED0</td>
+  <td>U16</td>
+</tr>
+<tr>
+  <td>2Y</td>
+  <td>LED1</td>
+  <td>E19</td>
+</tr>
+</tbody>
+</table>
+<p><strong>제작 순서:</strong> Vivado 프로젝트 <code>hd74hc51</code> 생성(RTL, Basys3) → 디자인 소스 <code>hd74hc51.v</code> → Verilog 작성 → XDC 핀 설정 → (테스트벤치·시뮬레이션은 이번에 생략) → Synthesis → Implementation → Bitstream → 다운로드 → 동작 확인</p>
+<p>파일명: <code>hd74hc51.v</code></p>
 <div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
-// 연속된 0 또는 연속된 1을 검출하는 Mealy FSM
-// 입력 din_bit가 00 또는 11 패턴을 만들면 dout_bit = 1
-module seq_det_mealy (
-    input  clk,
-    input  rst,
-    input  din_bit,
-    output dout_bit
+
+module hd74hc51(
+    input  a1, b1, c1,
+    input  d1, e1, f1,
+    input  a2, b2,
+    input  c2, d2,
+    output y1, y2
 );
 
-    // 상태 선언
-    parameter START     = 3'b000;
-    parameter RD0_ONCE  = 3'b001;
-    parameter RD1_ONCE  = 3'b010;
-    parameter RD0_TWICE = 3'b011;
-    parameter RD1_TWICE = 3'b100;
+    wire and1_1, and1_2;
+    wire and2_1, and2_2;
 
-    reg [2:0] state_reg;
-    reg [2:0] next_state;
+    assign and1_1 = a1 &amp; b1 &amp; c1;          // 3입력 AND
+    assign and1_2 = d1 &amp; e1 &amp; f1;          // 3입력 AND
+    assign y1     = ~(and1_1 | and1_2);    // OR 후 NOT
 
-    // 다음 상태 결정: 현재 상태와 현재 입력 기준
-    always @(state_reg or din_bit) begin
-        case (state_reg)
-            START : begin
-                if (din_bit == 1'b0) next_state = RD0_ONCE;    // 첫 번째 0
-                else                 next_state = RD1_ONCE;    // 첫 번째 1
-            end
-            RD0_ONCE : begin
-                if (din_bit == 1'b0) next_state = RD0_TWICE;   // 00
-                else                 next_state = RD1_ONCE;    // 01
-            end
-            RD0_TWICE : begin
-                if (din_bit == 1'b0) next_state = RD0_TWICE;   // 0 유지
-                else                 next_state = RD1_ONCE;    // 01로 전환
-            end
-            RD1_ONCE : begin
-                if (din_bit == 1'b0) next_state = RD0_ONCE;    // 10
-                else                 next_state = RD1_TWICE;   // 11
-            end
-            RD1_TWICE : begin
-                if (din_bit == 1'b0) next_state = RD0_ONCE;    // 10으로 전환
-                else                 next_state = RD1_TWICE;   // 1 유지
-            end
-            default : begin
-                next_state = START;                            // 예외 상태 복귀
-            end
-        endcase
-    end
-
-    // 상태 레지스터: 클록 상승 에지에서만 변경
-    always @(posedge clk or posedge rst) begin
-        if (rst)
-            state_reg &lt;= START;
-        else
-            state_reg &lt;= next_state;
-    end
-
-    // 출력 결정: 현재 상태와 현재 입력을 함께 사용 (Mealy)
-    // 수정: ONCE 상태도 포함해야 같은 값이 '두 번째'로 들어오는 순간 검출됨
-    assign dout_bit = (((state_reg == RD0_ONCE) || (state_reg == RD0_TWICE)) &amp;&amp; (din_bit == 1'b0)) ||
-                      (((state_reg == RD1_ONCE) || (state_reg == RD1_TWICE)) &amp;&amp; (din_bit == 1'b1));
+    assign and2_1 = a2 &amp; b2;               // 2입력 AND
+    assign and2_2 = c2 &amp; d2;               // 2입력 AND
+    assign y2     = ~(and2_1 | and2_2);    // OR 후 NOT
 
 endmodule
 </code></pre></div>
-<blockquote>
-<p><strong>출력식 분석:</strong> 출력 조건을 <code>RD0_TWICE</code>·<code>RD1_TWICE</code> 상태로만 두면(<code>(state_reg == RD0_TWICE) &amp;&amp; (din_bit == 1'b0)</code> …), 같은 값이 <strong>세 번째</strong>로 들어올 때 비로소 1이 됩니다. Mealy 출력은 &quot;지금 들어온 비트&quot;를 함께 보므로, 직전 비트가 같았다는 사실(ONCE 상태)과 현재 비트만으로 두 번째 연속을 바로 판정할 수 있습니다. 이렇게 고치면 <code>RD0_ONCE</code>와 <code>RD0_TWICE</code>의 동작이 같아지므로 상태를 3개(START, 직전 0, 직전 1)로 줄이는 최소화도 가능합니다. Mealy가 Moore보다 상태 수를 줄일 수 있다는 점을 보여 주는 좋은 예입니다.</p>
-</blockquote>
-<p>파일명: <code>tb_seq_det_mealy.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
-// seq_det_mealy 검증용 Testbench
-module tb_seq_det_mealy;
+<p>파일명: <code>Basys3_Master.xdc</code> (사용하는 줄만)</p>
+<div class="codeblock"><div class="codebar"><span>tcl</span></div><pre><code>set_property -dict { PACKAGE_PIN V17 IOSTANDARD LVCMOS33 } [get_ports a1]
+set_property -dict { PACKAGE_PIN V16 IOSTANDARD LVCMOS33 } [get_ports b1]
+set_property -dict { PACKAGE_PIN W16 IOSTANDARD LVCMOS33 } [get_ports c1]
+set_property -dict { PACKAGE_PIN W17 IOSTANDARD LVCMOS33 } [get_ports d1]
+set_property -dict { PACKAGE_PIN W15 IOSTANDARD LVCMOS33 } [get_ports e1]
+set_property -dict { PACKAGE_PIN V15 IOSTANDARD LVCMOS33 } [get_ports f1]
+set_property -dict { PACKAGE_PIN W14 IOSTANDARD LVCMOS33 } [get_ports a2]
+set_property -dict { PACKAGE_PIN W13 IOSTANDARD LVCMOS33 } [get_ports b2]
+set_property -dict { PACKAGE_PIN V2  IOSTANDARD LVCMOS33 } [get_ports c2]
+set_property -dict { PACKAGE_PIN T3  IOSTANDARD LVCMOS33 } [get_ports d2]
+set_property -dict { PACKAGE_PIN U16 IOSTANDARD LVCMOS33 } [get_ports y1]
+set_property -dict { PACKAGE_PIN E19 IOSTANDARD LVCMOS33 } [get_ports y2]
+</code></pre></div>
+<p>Add Constraints 단계에서는 <strong>Copy constraints files into project</strong>를 반드시 체크해 원본 Master XDC를 보존합니다. RTL Analysis의 Schematic에서 3입력 AND 두 개 → OR → NOT 구조가 만들어졌는지 확인합니다.</p>
+<p><img src="images/ch02/slide_19_hc51_source.jpg" alt="Vivado에서 hd74hc51.v 작성 화면" />
+<em>그림 2-24. 디자인 소스 작성 화면</em></p>
+<p><img src="images/ch02/slide_21_hc51_rtl_analysis.jpg" alt="RTL Analysis 회로도" />
+<em>그림 2-25. RTL Analysis — 3입력 AND, OR, NOT 구조</em></p>
+<p><img src="images/ch02/slide_22_hc51_synth_impl.jpg" alt="합성과 구현 완료 화면" />
+<em>그림 2-26. Synthesis · Implementation 완료</em></p>
+<p><img src="images/ch02/slide_24_hc51_board_test.jpg" alt="Program Device와 보드 테스트" />
+<em>그림 2-27. Program Device와 보드 동작 (SW0~SW9 입력, LED0~LED1 출력)</em></p>
+<p>예상 동작: SW0~SW2가 모두 ON이거나 SW3~SW5가 모두 ON이면 LED0이 <strong>꺼집니다</strong>. 평소(모두 OFF)에는 두 LED가 모두 켜져 있습니다.</p>
+<p><strong>자율 과제</strong></p>
+<table>
+<thead>
+<tr>
+  <th>과제</th>
+  <th>IC</th>
+  <th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>#1</td>
+  <td>74HC86</td>
+  <td>2입력 XOR 게이트 4개(Quad XOR), <code>nY = nA ⊕ nB</code></td>
+</tr>
+<tr>
+  <td>#2</td>
+  <td>74HC58</td>
+  <td>AND-OR 게이트 2개, <code>1Y = 1A·1B·1C + 1D·1E·1F</code>, <code>2Y = 2A·2B + 2C·2D</code></td>
+</tr>
+</tbody>
+</table>
+<p>데이터시트에서 핀 배치와 기능표를 직접 확인하고, 같은 제작 순서로 구현합니다.</p>
+<p><img src="images/ch02/slide_25_task_74hc86.jpg" alt="74HC86 자율과제 슬라이드" />
+<em>그림 2-28. 자율과제 #1 — 74HC86</em></p>
+<p><img src="images/ch02/slide_26_task_74hc58.jpg" alt="74HC58 자율과제 슬라이드" />
+<em>그림 2-29. 자율과제 #2 — 74HC58</em></p>
+</section><section class="section" id="s10"><h2><span class="num">10</span>74 시리즈 기반 RTL 설계 규칙</h2><p>Verilog는 프로그램 언어가 아니라 <strong>하드웨어 기술 언어(HDL)</strong> 입니다. 코드를 실행하는 것이 아니라 FPGA 안에 실제 회로를 만든다고 생각해야 합니다. 이 과정은 74 시리즈 IC 번호를 모듈 이름에 붙여 실제 부품과 RTL을 연결합니다.</p>
+<table>
+<thead>
+<tr>
+  <th>접두어</th>
+  <th>분류</th>
+  <th>역할</th>
+  <th>출력 결정</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>g_</code></td>
+  <td>Gate</td>
+  <td>논리 연산</td>
+  <td>현재 입력</td>
+</tr>
+<tr>
+  <td><code>c_</code></td>
+  <td>Combinational</td>
+  <td>선택·계산</td>
+  <td>현재 입력 (기억 없음)</td>
+</tr>
+<tr>
+  <td><code>s_</code></td>
+  <td>Sequential</td>
+  <td>기억·상태</td>
+  <td>현재 입력 + 이전 상태</td>
+</tr>
+<tr>
+  <td><code>p_</code></td>
+  <td>Project / Peripheral</td>
+  <td>시스템 기능</td>
+  <td>조합 + 순차</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+  <th>계열</th>
+  <th>모듈 예</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Gate</td>
+  <td><code>g_not_7404</code>, <code>g_buffer_7407</code>, <code>g_nand_7400</code>, <code>g_nor_7402</code>, <code>g_and_7408</code>, <code>g_or_7432</code>, <code>g_xor_7486</code></td>
+</tr>
+<tr>
+  <td>Combinational</td>
+  <td><code>c_mux2_74157</code>, <code>c_mux8_74151</code>, <code>c_decoder2_74139</code>, <code>c_decoder3_74138</code>, <code>c_decoder4_74154</code>, <code>c_encoder8_74148</code>, <code>c_comparator_7485</code>, <code>c_adder4_74283</code>, <code>c_alu_74181</code>, <code>c_sevenseg_7447</code></td>
+</tr>
+<tr>
+  <td>Sequential</td>
+  <td><code>s_dff_7474</code>, <code>s_latch_7475</code>, <code>s_register_74173</code>, <code>s_counter_74161</code>, <code>s_counter_7490</code>, <code>s_shift_74164</code>, <code>s_shift_74194</code></td>
+</tr>
+<tr>
+  <td>Project</td>
+  <td><code>p_debounce</code>, <code>p_clock_divider</code>, <code>p_edge_detector</code>, <code>p_uart_tx</code>, <code>p_uart_rx</code>, <code>p_baud_gen</code>, <code>p_sevenseg_driver</code>, <code>p_fsm_controller</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>권장 라이브러리 구조</strong></p>
+<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>rtl_lib/
+├── g_gate/
+├── c_comb/
+├── s_seq/
+└── p_project/
+</code></pre></div>
+<p><strong>코딩 스타일</strong></p>
+<ol>
+<li>파일명과 모듈명을 같게 (<code>g_and_7408.v</code> ↔ <code>module g_and_7408</code>)</li>
+<li>포트는 줄 맞춰 정렬</li>
+<li><code>assign</code> 문은 간결하게</li>
+<li>주석은 핵심만 (<code>// AND Gate</code>)</li>
+<li>조합논리(현재 입력만)와 순차논리(클록 + 이전 상태)를 섞지 않기</li>
+</ol>
+<p>디지털 시스템은 <strong>연산(Gate·ALU) · 선택(MUX·Decoder) · 기억(Flip-Flop·Register) · 제어(FSM)</strong> 네 기능으로 구성됩니다.</p>
+<p><strong>학습 테크트리</strong></p>
+<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>[LEVEL 1] Gate           → 논리 연산 이해
+[LEVEL 2] Combinational  → 선택·계산 이해 (MUX, Decoder, Adder, ALU)
+[LEVEL 3] Sequential     → 기억·상태 이해 (DFF, Register, Counter, Shift)
+[LEVEL 4] FPGA Utility   → 디바운스, 분주기, 에지 검출, 7세그먼트 드라이버
+[LEVEL 5] Communication  → Baud 생성, UART 송수신
+[LEVEL 6] FSM            → 신호등, 자판기, UART 제어
+[LEVEL 7] System Design  → ALU, Register File, Simple CPU, Bus
+[LEVEL 8] Advanced FPGA  → AXI, SPI, I2C, VGA, HDMI, RISC-V, Zynq, Edge AI
+</code></pre></div>
+<p>작은 회로를 조립해 큰 시스템을 만드는 과정입니다.</p>
+</section><section class="section" id="s11"><h2><span class="num">11</span>게이트 모듈 구조화 설계</h2><p>게이트 일곱 개를 각각 독립 모듈로 만들고, 최상위 모듈 <code>gate_top</code>에서 <strong>인스턴스(Instance)</strong> 로 불러 연결합니다. 같은 입력 SW0(A)·SW1(B)을 모든 게이트에 넣어 종류별 출력 차이를 한눈에 비교합니다.</p>
+<table>
+<thead>
+<tr>
+  <th>LED</th>
+  <th>연결 모듈</th>
+  <th>기능</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>LED0</td>
+  <td><code>g_not_7404</code></td>
+  <td>NOT (A)</td>
+</tr>
+<tr>
+  <td>LED1</td>
+  <td><code>g_buffer_7407</code></td>
+  <td>BUFFER (A)</td>
+</tr>
+<tr>
+  <td>LED2</td>
+  <td><code>g_and_7408</code></td>
+  <td>AND</td>
+</tr>
+<tr>
+  <td>LED3</td>
+  <td><code>g_or_7432</code></td>
+  <td>OR</td>
+</tr>
+<tr>
+  <td>LED4</td>
+  <td><code>g_nand_7400</code></td>
+  <td>NAND</td>
+</tr>
+<tr>
+  <td>LED5</td>
+  <td><code>g_nor_7402</code></td>
+  <td>NOR</td>
+</tr>
+<tr>
+  <td>LED6</td>
+  <td><code>g_xor_7486</code></td>
+  <td>XOR</td>
+</tr>
+</tbody>
+</table>
+<p>필요한 파일: <code>g_not_7404.v</code>, <code>g_buffer_7407.v</code>, <code>g_and_7408.v</code>, <code>g_or_7432.v</code>, <code>g_nand_7400.v</code>, <code>g_nor_7402.v</code>, <code>g_xor_7486.v</code>, <code>gate_top.v</code>, <code>Basys3.xdc</code></p>
+<p>파일명: <code>g_not_7404.v</code> / <code>g_buffer_7407.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module g_not_7404(
+    input  a,
+    output y
+);
+    // NOT Gate
+    assign y = ~a;
+endmodule
 
-    reg  clk, rst, din_bit;
-    wire dout_bit;
+module g_buffer_7407(
+    input  a,
+    output y
+);
+    // BUFFER
+    assign y = a;
+endmodule
+</code></pre></div>
+<p>파일명: <code>g_and_7408.v</code> / <code>g_or_7432.v</code> / <code>g_nand_7400.v</code> / <code>g_nor_7402.v</code> / <code>g_xor_7486.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module g_and_7408(
+    input  a,
+    input  b,
+    output y
+);
+    // AND Gate
+    assign y = a &amp; b;
+endmodule
 
-    seq_det_mealy dut (
-        .clk     (clk),
-        .rst     (rst),
-        .din_bit (din_bit),
-        .dout_bit(dout_bit)
+module g_or_7432(
+    input  a,
+    input  b,
+    output y
+);
+    // OR Gate
+    assign y = a | b;
+endmodule
+
+module g_nand_7400(
+    input  a,
+    input  b,
+    output y
+);
+    // NAND Gate
+    assign y = ~(a &amp; b);
+endmodule
+
+module g_nor_7402(
+    input  a,
+    input  b,
+    output y
+);
+    // NOR Gate
+    assign y = ~(a | b);
+endmodule
+
+module g_xor_7486(
+    input  a,
+    input  b,
+    output y
+);
+    // XOR Gate
+    assign y = a ^ b;
+endmodule
+</code></pre></div>
+<p>실제 프로젝트에서는 모듈마다 같은 이름의 파일로 나누어 저장합니다.</p>
+<p>파일명: <code>gate_top.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module gate_top(
+    input  [1:0] sw,
+    output [6:0] led
+);
+
+    // NOT Gate
+    g_not_7404 u_not_7404(
+        .a(sw[0]),
+        .y(led[0])
     );
 
-    // 10ns Clock
-    initial begin
-        clk = 1'b0;
-        forever #5 clk = ~clk;
-    end
+    // BUFFER
+    g_buffer_7407 u_buffer_7407(
+        .a(sw[0]),
+        .y(led[1])
+    );
 
-    // 1비트 입력을 Clock 1주기 동안 인가
-    task send_bit;
-        input bit_value;
-        begin
-            din_bit = bit_value;
-            #10;
-        end
-    endtask
+    // AND Gate
+    g_and_7408 u_and_7408(
+        .a(sw[0]),
+        .b(sw[1]),
+        .y(led[2])
+    );
 
-    // 입력 패턴: 0 1 0 1 1 1 0 1 0 0 1 1 0 1 0 0
-    initial begin
-        rst = 1'b1; din_bit = 1'b0;
-        #20;
-        rst = 1'b0;
+    // OR Gate
+    g_or_7432 u_or_7432(
+        .a(sw[0]),
+        .b(sw[1]),
+        .y(led[3])
+    );
 
-        send_bit(1'b0);
-        send_bit(1'b1);
-        send_bit(1'b0);
-        send_bit(1'b1);
-        send_bit(1'b1);   // 11 검출
-        send_bit(1'b1);   // 11 유지 검출
-        send_bit(1'b0);
-        send_bit(1'b1);
-        send_bit(1'b0);
-        send_bit(1'b0);   // 00 검출
-        send_bit(1'b1);
-        send_bit(1'b1);   // 11 검출
-        send_bit(1'b0);
-        send_bit(1'b1);
-        send_bit(1'b0);
-        send_bit(1'b0);   // 00 검출
-        #30;
-        $finish;
-    end
+    // NAND Gate
+    g_nand_7400 u_nand_7400(
+        .a(sw[0]),
+        .b(sw[1]),
+        .y(led[4])
+    );
 
-    initial begin
-        $dumpfile(&quot;tb_seq_det_mealy.vcd&quot;);
-        $dumpvars(0, tb_seq_det_mealy);
-    end
+    // NOR Gate
+    g_nor_7402 u_nor_7402(
+        .a(sw[0]),
+        .b(sw[1]),
+        .y(led[5])
+    );
 
-    initial begin
-        $monitor(&quot;time=%0t | rst=%b din_bit=%b | dout_bit=%b&quot;,
-                 $time, rst, din_bit, dout_bit);
-    end
+    // XOR Gate
+    g_xor_7486 u_xor_7486(
+        .a(sw[0]),
+        .b(sw[1]),
+        .y(led[6])
+    );
 
 endmodule
 </code></pre></div>
-<p><strong>예상 출력</strong></p>
-<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>입력  : 0 1 0 1 1 1 0 1 0 0 1 1 0 1 0 0
-검출  : 0 0 0 0 1 1 0 0 0 1 0 1 0 0 0 1
-</code></pre></div>
+<p><strong>Module과 Instance</strong></p>
 <table>
 <thead>
 <tr>
-  <th style="text-align:center">순서</th>
-  <th style="text-align:center">din_bit</th>
-  <th style="text-align:center">검출</th>
-  <th>설명</th>
+  <th>개념</th>
+  <th>의미</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-  <td style="text-align:center">5</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td><code>11</code> 검출</td>
+  <td>Module</td>
+  <td>회로를 <strong>정의</strong>하는 블록</td>
 </tr>
 <tr>
-  <td style="text-align:center">6</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td><code>11</code> 유지</td>
+  <td>Instance</td>
+  <td>정의된 모듈을 FPGA 내부에 <strong>실제로 생성</strong>한 것</td>
 </tr>
 <tr>
-  <td style="text-align:center">10</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td><code>00</code> 검출</td>
-</tr>
-<tr>
-  <td style="text-align:center">12</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td><code>11</code> 검출</td>
-</tr>
-<tr>
-  <td style="text-align:center">16</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td><code>00</code> 검출</td>
+  <td>Instantiation</td>
+  <td>모듈을 배치·연결하는 과정</td>
 </tr>
 </tbody>
 </table>
-<p><strong>파형 읽는 법:</strong> Mealy 출력은 현재 입력에 바로 반응하므로, 각 입력 비트의 판정값은 그 비트가 저장되는 <strong>클록 상승 에지 직전</strong>의 <code>dout_bit</code>입니다. 이 테스트벤치는 입력을 두 에지 사이에서 바꾸기 때문에, 에지 직후에는 상태가 이미 현재 비트를 반영한 채 같은 비트와 다시 비교되어 반 클록짜리 1이 보일 수 있습니다. 실제 시스템에서는 Mealy 출력을 다음 단의 레지스터가 클록 에지에서 샘플링하므로 이 구간은 사용되지 않습니다.</p>
-<p>수정 전 출력식(TWICE 상태만 검사)으로 같은 테스트를 돌리면 6번째 입력에서만 1이 나옵니다. 두 결과를 파형으로 비교해 보면 Mealy 출력이 &quot;현재 입력&quot;에 즉시 반응한다는 의미가 분명해집니다.</p>
-</section><section class="section" id="s09"><h2><span class="num">09</span>정리와 점검</h2><table>
+<table>
+<thead>
+<tr>
+  <th>인스턴스 구문 요소</th>
+  <th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>g_and_7408</code></td>
+  <td>사용할 모듈 이름</td>
+</tr>
+<tr>
+  <td><code>u_and_7408</code></td>
+  <td>생성되는 회로(인스턴스) 이름</td>
+</tr>
+<tr>
+  <td><code>.a(sw[0])</code></td>
+  <td>모듈 포트 <code>a</code>에 <code>sw[0]</code> 연결</td>
+</tr>
+<tr>
+  <td><code>.y(led[2])</code></td>
+  <td>모듈 출력 <code>y</code>를 <code>led[2]</code>에 연결</td>
+</tr>
+</tbody>
+</table>
+<p>같은 모듈을 여러 번 생성할 수도 있습니다. 인스턴스 이름만 서로 달라야 합니다.</p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>g_and_7408 u1(.a(sw[0]), .b(sw[1]), .y(led[0]));
+g_and_7408 u2(.a(sw[2]), .b(sw[3]), .y(led[1]));
+</code></pre></div>
+<p><strong>확인 포인트:</strong> SW0·SW1 변화에 따른 LED 출력, RTL Analysis → Elaborated Design → Schematic에서 인스턴스 7개와 연결 구조, 포트 방향과 비트 폭 일치.</p>
+</section><section class="section" id="s12"><h2><span class="num">12</span>정리와 점검</h2><table>
 <thead>
 <tr>
   <th>개념</th>
@@ -2065,50 +1822,45 @@ endmodule
 </thead>
 <tbody>
 <tr>
-  <td>FSM</td>
-  <td>유한한 상태 + 조건에 따른 전이</td>
+  <td>부울대수 공리</td>
+  <td>X·1=X, X+0=X, X·0=0, X+1=1</td>
 </tr>
 <tr>
-  <td>구성</td>
-  <td>State Register · Next State Logic · Output Logic</td>
+  <td>범용 게이트</td>
+  <td>NAND, NOR만으로 모든 회로 구현</td>
 </tr>
 <tr>
-  <td>상태 갱신</td>
-  <td>클록 상승 에지에서 <code>ns</code> → <code>ps</code></td>
+  <td>XOR / XNOR</td>
+  <td>다름 검출 / 같음 검출</td>
 </tr>
 <tr>
-  <td>Moore</td>
-  <td>출력 = f(상태), 안정적</td>
+  <td>비트 vs 논리 연산</td>
+  <td><code>&amp;</code> 벡터 결과 / <code>&amp;&amp;</code> 참·거짓</td>
 </tr>
 <tr>
-  <td>Mealy</td>
-  <td>출력 = f(상태, 입력), 빠르고 상태 수가 적음</td>
+  <td>벡터</td>
+  <td><code>[MSB:LSB]</code>, 결합 <code>{ }</code>, 반복 <code>{n{ }}</code></td>
 </tr>
 <tr>
-  <td>코딩</td>
-  <td>리셋 초기 상태, <code>default</code> 복구, <code>localparam</code> 상태 이름</td>
-</tr>
-<tr>
-  <td>출력 레지스터</td>
-  <td><code>next</code> 기준으로 저장하면 출력이 상태와 같은 에지에 안정적으로 바뀜</td>
+  <td>구조적 설계</td>
+  <td>모듈 정의 → 인스턴스로 조립</td>
 </tr>
 </tbody>
 </table>
 <p><strong>스스로 점검하기</strong></p>
 <ol>
-<li>Moore 버튼 감지기에서 <code>z</code>가 1이 되는 것은 세 번째 <code>x=1</code>을 받은 클록인가, 그다음 클록인가?</li>
-<li>Mealy 직렬 수신기에서 입력 <code>1 0 1</code>이 들어올 때 각 클록의 출력 <code>y1y2</code>를 쓰시오.</li>
-<li>FSM_ex2에서 출력 기본값(<code>rd = 0; ds = 0;</code>)을 빼면 어떤 회로가 생기는가?</li>
-<li>FSM_ex3가 <code>state</code>가 아니라 <code>next</code>로 출력을 정하는 이유는 무엇인가?</li>
-<li>연속 비트 검출기를 3개 상태로 최소화해 다시 작성하시오.</li>
-<li>상태 이름을 <code>`define</code>으로 정의하면 생길 수 있는 문제는 무엇인가?</li>
+<li><code>4'b1010 | 4'b1100</code>과 <code>4'b1010 || 4'b1100</code>의 결과를 각각 쓰시오.</li>
+<li><code>^in</code>이 1이 되는 조건은 무엇이며 어디에 쓰이는가?</li>
+<li>74HC51의 1Y가 0이 되는 입력 조합 두 가지를 쓰시오.</li>
+<li>인스턴스 이름이 중복되면 어떤 문제가 생기는가?</li>
+<li>XNOR 게이트는 XOR 게이트와 어떤 관계인가?</li>
 </ol>
 <blockquote>
-<p>FSM 코딩의 핵심은 <strong>상태 저장 · 다음 상태 결정 · 출력 생성</strong>을 명확히 분리하는 것입니다.</p>
+<p><strong>핵심 철학:</strong> Verilog는 코드를 실행하는 것이 아니라 FPGA 내부에 실제 디지털 회로를 생성합니다.</p>
 </blockquote>
 </section><div class="chapter-links" id="chapter-links"></div></main></div>
-<footer class="footer">Digital Design · FPGA · Verilog · v01  · 실습 결과는 실제 환경에서 검증</footer>
-<script>window.COURSE={"title": "Digital Design · FPGA · Verilog", "short_title": "DIGITAL DESIGN FPGA", "home_label": "전체 학습 안내서", "chapters": [{"id": "ch01", "number": 1, "title": "개발환경과 첫 실습", "file": "ch01_fpga_environment_v01.html"}, {"id": "ch02", "number": 2, "title": "논리 게이트와 Verilog", "file": "ch02_logic_gates_v01.html"}, {"id": "ch03", "number": 3, "title": "조합회로 설계", "file": "ch03_combinational_v01.html"}, {"id": "ch04", "number": 4, "title": "순차회로 설계", "file": "ch04_sequential_v01.html"}, {"id": "ch05", "number": 5, "title": "스톱워치와 디지털 시계", "file": "ch05_stopwatch_clock_v01.html"}, {"id": "ch06", "number": 6, "title": "Vivado IP 블록 설계", "file": "ch06_vivado_ip_v01.html"}, {"id": "ch07", "number": 7, "title": "FSM 회로 설계", "file": "ch07_fsm_v01.html"}]};</script><script>/*
+<footer class="footer">Digital Design · FPGA · Verilog · v02  · 실습 결과는 실제 환경에서 검증</footer>
+<script>window.COURSE={"title": "Digital Design · FPGA · Verilog", "short_title": "DIGITAL DESIGN FPGA", "home_label": "전체 학습 안내서", "chapters": [{"id": "ch01", "number": 1, "title": "개발환경과 첫 실습", "file": "ch01_fpga_environment_v02.html"}, {"id": "ch02", "number": 2, "title": "논리 게이트와 Verilog", "file": "ch02_logic_gates_v02.html"}, {"id": "ch03", "number": 3, "title": "조합회로 설계", "file": "ch03_combinational_v02.html"}, {"id": "ch04", "number": 4, "title": "순차회로 설계", "file": "ch04_sequential_v02.html"}, {"id": "ch05", "number": 5, "title": "스톱워치와 디지털 시계", "file": "ch05_stopwatch_clock_v02.html"}, {"id": "ch06", "number": 6, "title": "Vivado IP 블록 설계", "file": "ch06_vivado_ip_v02.html"}, {"id": "ch07", "number": 7, "title": "FSM 회로 설계", "file": "ch07_fsm_v02.html"}]};</script><script>/*
  * 교육용 HTML 공통 동작 — 유지보수용 원본 (STANDARD 4·10.3·10.4)
  * 페이지 본문은 바꾸지 않고 탐색·이전/다음·모바일 메뉴·코드 복사만 덧붙인다.
  * 입력: 페이지의 window.COURSE (tools/guide/build_guides.py가 실제 존재하는 장만 넣음),

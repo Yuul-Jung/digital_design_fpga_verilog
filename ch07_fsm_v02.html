@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="가산기 → 7세그먼트 → MUX·Decoder·ALU → 미니 프로젝트"><title>제03장 · 조합회로 설계 · Digital Design · FPGA · Verilog</title>
+<meta name="description" content="FSM 구조 → Moore·Mealy → 구현 방식 비교 → 시퀀스 검출"><title>제07장 · FSM 회로 설계 · Digital Design · FPGA · Verilog</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>/*
@@ -576,2087 +576,1538 @@ pre code {
     height: auto;
   }
 }
-</style></head><body data-chapter="ch03">
+
+/* 저장소별 추가: 본문 그림·캡션 (digital_design_fpga_verilog) */
+.section img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 18px auto 6px;
+  border: 1px solid #e1e1dc;
+  border-radius: 8px;
+  background: #ffffff;
+  max-height: 640px;
+  width: auto;
+  object-fit: contain;
+}
+.section p > img + em,
+.section p > em.caption {
+  display: block;
+  margin: 0 auto 14px;
+  text-align: center;
+  font-size: 0.84rem;
+  font-style: normal;
+  color: #5b5e68;
+}
+</style></head><body data-chapter="ch07">
 <button type="button" class="mobile-menu" id="mobile-menu" aria-controls="course-nav" aria-expanded="false">☰ 장·목차</button><div class="shade" id="shade"></div>
-<header class="hero"><div class="hero-inner"><p class="kicker">DIGITAL DESIGN FPGA · CHAPTER 03</p><h1>제03장 · 조합회로 설계</h1><p>가산기 → 7세그먼트 → MUX·Decoder·ALU → 미니 프로젝트</p><div class="chips"><span class="chip">Adder</span><span class="chip">CLA</span><span class="chip">MUX</span><span class="chip">ALU</span><span class="chip">Testbench</span></div></div></header>
-<div class="wrap"><nav class="toc" id="course-nav" aria-label="장과 절 탐색"></nav><main class="content" id="main-content"><section class="section" id="s00"><h2><span class="num">00</span>학습 안내</h2><p>이 장은 게이트를 조합해 <strong>조합논리회로(Combinational Logic)</strong> 를 설계하고, <strong>테스트벤치(Testbench)</strong> 로 시뮬레이션 검증한 뒤 Basys3에서 확인합니다. 조합회로는 기억 소자가 없어 <strong>현재 입력만으로 출력이 결정</strong>됩니다.</p>
-<table>
-<thead>
-<tr>
-  <th>단계</th>
-  <th>주제</th>
-  <th>핵심 회로</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>LEVEL 2-A</td>
-  <td>덧셈과 표시</td>
-  <td>Half Adder → Full Adder → 4bit Adder → CLA → 7세그먼트</td>
-</tr>
-<tr>
-  <td>LEVEL 2-B</td>
-  <td>선택·변환·비교·연산</td>
-  <td>MUX → DEMUX → Decoder → Encoder → Comparator → ALU</td>
-</tr>
-<tr>
-  <td>LEVEL 2-C</td>
-  <td>응용 미니 프로젝트</td>
-  <td>이니셜 표시, 비밀번호 잠금, 가위바위보 판정 등 10개 과제</td>
-</tr>
-</tbody>
-</table>
-<p><strong>검증 중심 설계 흐름</strong></p>
-<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>회로 이해 → Verilog 작성 → Testbench 작성 → Vivado Simulation
-→ Waveform 분석 → RTL Schematic 확인 → Bitstream 생성 → Basys3 동작 확인
-</code></pre></div>
-<blockquote>
-<p>복잡한 조합회로도 작은 기능 블록을 조합해 만들 수 있습니다.</p>
-</blockquote>
-</section><section class="section" id="s01"><h2><span class="num">01</span>Verilog 회로 모델링 방법</h2><p>Verilog는 같은 회로를 네 가지 방식으로 표현할 수 있습니다.</p>
-<table>
-<thead>
-<tr>
-  <th>모델링</th>
-  <th>주요 문법</th>
-  <th>특징</th>
-  <th>실무 사용</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>Gate-Level</td>
-  <td><code>and</code>, <code>or</code>, <code>not</code>, <code>xor</code></td>
-  <td>게이트 프리미티브 직접 연결, 회로도와 유사</td>
-  <td>학습용</td>
-</tr>
-<tr>
-  <td>Dataflow</td>
-  <td><code>assign</code></td>
-  <td>논리식 기반, 간결</td>
-  <td>매우 많이 사용</td>
-</tr>
-<tr>
-  <td>Behavioral</td>
-  <td><code>always @(*)</code>, <code>if</code>, <code>case</code></td>
-  <td>조건 기반, 7세그먼트·ALU·제어논리</td>
-  <td>FPGA 실무 중심</td>
-</tr>
-<tr>
-  <td>Structural</td>
-  <td>모듈 인스턴스</td>
-  <td>모듈 조합, 계층·재사용</td>
-  <td>상위 시스템</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Gate-Level</strong></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module gate_and(
-    input  a,
-    input  b,
-    output y
-);
-    // AND 게이트 프리미티브: (출력, 입력, 입력)
-    and u0(y, a, b);
-endmodule
-</code></pre></div>
-<p><strong>Dataflow</strong></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module dataflow_and(
-    input  a,
-    input  b,
-    output y
-);
-    assign y = a &amp; b;
-endmodule
-</code></pre></div>
-<p><strong>Behavioral</strong></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module simple_sevenseg(
-    input      [1:0] num,
-    output reg [6:0] seg
-);
-    // 조합논리 always 블록: 입력값에 따른 세그먼트 패턴 선택
-    always @(*) begin
-        case (num)
-            2'd0:    seg = 7'b1000000;
-            2'd1:    seg = 7'b1111001;
-            2'd2:    seg = 7'b0100100;
-            2'd3:    seg = 7'b0110000;
-            default: seg = 7'b1111111;
-        endcase
-    end
-endmodule
-</code></pre></div>
-<p>Structural 방식은 다음 절의 Full Adder에서 다룹니다. FPGA는 HDL 코드를 <strong>논리 의미</strong> 기준으로 해석해 <code>HDL → Synthesis → LUT</code> 순서로 회로를 만듭니다. 표현 방식이 달라도 같은 논리라면 같은 회로가 생성됩니다.</p>
-</section><section class="section" id="s02"><h2><span class="num">02</span>반가산기와 전가산기</h2><p><strong>Half Adder</strong> — 1비트 A, B를 더해 합(SUM)과 자리올림(CARRY)을 만듭니다.</p>
-<table>
-<thead>
-<tr>
-  <th style="text-align:center">A</th>
-  <th style="text-align:center">B</th>
-  <th style="text-align:center">SUM = A⊕B</th>
-  <th style="text-align:center">CARRY = A·B</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-</tr>
-</tbody>
-</table>
-<p>파일명: <code>c_halfadder.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_halfadder(
-    input  a,
-    input  b,
-    output sum,
-    output carry
-);
-    assign sum   = a ^ b;   // SUM 출력
-    assign carry = a &amp; b;   // CARRY 출력
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_c_halfadder.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_c_halfadder;
-
-    // 입력은 reg, 출력은 wire
-    reg  a;
-    reg  b;
-    wire sum;
-    wire carry;
-
-    // DUT: 검증 대상 회로
-    c_halfadder dut(
-        .a(a),
-        .b(b),
-        .sum(sum),
-        .carry(carry)
-    );
-
-    initial begin
-        a = 0; b = 0; #10;
-        a = 0; b = 1; #10;
-        a = 1; b = 0; #10;
-        a = 1; b = 1; #10;
-        $finish;    // 시뮬레이션 종료
-    end
-
-endmodule
-</code></pre></div>
-<table>
-<thead>
-<tr>
-  <th>테스트벤치 요소</th>
-  <th>의미</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><code>reg</code></td>
-  <td>테스트벤치가 값을 바꾸는 입력 신호</td>
-</tr>
-<tr>
-  <td><code>wire</code></td>
-  <td>DUT가 내보내는 출력 신호</td>
-</tr>
-<tr>
-  <td>DUT</td>
-  <td>Design Under Test, 검증 대상 회로</td>
-</tr>
-<tr>
-  <td><code>initial</code></td>
-  <td>시뮬레이션 시작 시 한 번 실행</td>
-</tr>
-<tr>
-  <td><code>#10</code></td>
-  <td>10 시간 단위(기본 1ns 기준 10ns) 지연</td>
-</tr>
-<tr>
-  <td><code>$finish</code></td>
-  <td>시뮬레이션 종료</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Full Adder</strong> — 아랫자리에서 올라온 CIN까지 세 비트를 더합니다.</p>
-<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>SUM  = A ^ B ^ CIN
-COUT = (A &amp; B) | (A &amp; CIN) | (B &amp; CIN)
-
-Full Adder
-├─ Half Adder #1  (A, B)
-├─ Half Adder #2  (s1, CIN)
-└─ OR Gate        (c1 | c2)
-</code></pre></div>
-<p>파일명: <code>c_fulladder.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_fulladder(
-    input  a,
-    input  b,
-    input  cin,
-    output sum,
-    output cout
-);
-
-    // 중간 연결 신호
-    wire s1;
-    wire c1;
-    wire c2;
-
-    // Half Adder #1
-    c_halfadder u_ha0(
-        .a(a),
-        .b(b),
-        .sum(s1),
-        .carry(c1)
-    );
-
-    // Half Adder #2
-    c_halfadder u_ha1(
-        .a(s1),
-        .b(cin),
-        .sum(sum),
-        .carry(c2)
-    );
-
-    // 최종 Carry 출력
-    assign cout = c1 | c2;
-
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_fulladder.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_fulladder;
-
-    reg  a, b, cin;
-    wire sum, cout;
-
-    c_fulladder dut(
-        .a(a),
-        .b(b),
-        .cin(cin),
-        .sum(sum),
-        .cout(cout)
-    );
-
-    initial begin
-        a = 0; b = 0; cin = 0; #10;
-        a = 0; b = 0; cin = 1; #10;
-        a = 0; b = 1; cin = 0; #10;
-        a = 0; b = 1; cin = 1; #10;
-        a = 1; b = 0; cin = 0; #10;
-        a = 1; b = 0; cin = 1; #10;
-        a = 1; b = 1; cin = 0; #10;
-        a = 1; b = 1; cin = 1; #10;
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<p>예상 결과:</p>
-<table>
-<thead>
-<tr>
-  <th style="text-align:center">A</th>
-  <th style="text-align:center">B</th>
-  <th style="text-align:center">CIN</th>
-  <th style="text-align:center">SUM</th>
-  <th style="text-align:center">COUT</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-</tr>
-<tr>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-</tr>
-<tr>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-</tr>
-<tr>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">1</td>
-</tr>
-</tbody>
-</table>
-<p>RTL Schematic에서 Half Adder 인스턴스 2개, 중간 신호 <code>s1</code>·<code>c1</code>·<code>c2</code>, OR로 만들어지는 COUT을 확인합니다.</p>
-<p><strong>Vivado 시뮬레이션 순서:</strong> Add Sources → <strong>Add Simulation Sources</strong>(테스트벤치) → Run Simulation → Run Behavioral Simulation → Waveform 확인 → RTL Analysis → Open Elaborated Design → Schematic</p>
-</section><section class="section" id="s03"><h2><span class="num">03</span>4비트 가산기와 CLA</h2><p><strong>Ripple Carry 4bit Adder</strong> — Full Adder 4개를 이어 붙여 74283(4bit Binary Full Adder)의 기능을 구현합니다. 아랫자리 Carry가 윗자리 CIN으로 차례로 전달되므로 구조는 단순하지만 비트 수가 늘수록 지연이 커집니다. 실제 74283 IC는 내부에 Carry Look-Ahead 구조를 써서 이 지연을 줄였습니다.</p>
-<p>파일명: <code>c_adder4_74283.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_adder4_74283(
-    input  [3:0] a,
-    input  [3:0] b,
-    input        cin,
-    output [3:0] sum,
-    output       cout
-);
-
-    // Carry 연결 신호
-    wire c1;
-    wire c2;
-    wire c3;
-
-    // bit 0
-    c_fulladder u_fa0(
-        .a(a[0]),
-        .b(b[0]),
-        .cin(cin),
-        .sum(sum[0]),
-        .cout(c1)
-    );
-
-    // bit 1
-    c_fulladder u_fa1(
-        .a(a[1]),
-        .b(b[1]),
-        .cin(c1),
-        .sum(sum[1]),
-        .cout(c2)
-    );
-
-    // bit 2
-    c_fulladder u_fa2(
-        .a(a[2]),
-        .b(b[2]),
-        .cin(c2),
-        .sum(sum[2]),
-        .cout(c3)
-    );
-
-    // bit 3
-    c_fulladder u_fa3(
-        .a(a[3]),
-        .b(b[3]),
-        .cin(c3),
-        .sum(sum[3]),
-        .cout(cout)
-    );
-
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_adder4.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_adder4;
-
-    reg  [3:0] a;
-    reg  [3:0] b;
-    reg        cin;
-    wire [3:0] sum;
-    wire       cout;
-
-    c_adder4_74283 dut(
-        .a(a),
-        .b(b),
-        .cin(cin),
-        .sum(sum),
-        .cout(cout)
-    );
-
-    initial begin
-        a = 4'd0;  b = 4'd0;  cin = 0; #10;
-        a = 4'd3;  b = 4'd2;  cin = 0; #10;
-        a = 4'd7;  b = 4'd1;  cin = 0; #10;
-        a = 4'd8;  b = 4'd7;  cin = 0; #10;
-        a = 4'd15; b = 4'd1;  cin = 0; #10;
-        a = 4'd15; b = 4'd15; cin = 0; #10;
-        a = 4'd15; b = 4'd15; cin = 1; #10;
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<p>예상 결과:</p>
-<table>
-<thead>
-<tr>
-  <th style="text-align:center">A</th>
-  <th style="text-align:center">B</th>
-  <th style="text-align:center">CIN</th>
-  <th style="text-align:center">십진 합</th>
-  <th style="text-align:center">SUM</th>
-  <th style="text-align:center">COUT</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0000</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">3</td>
-  <td style="text-align:center">2</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">5</td>
-  <td style="text-align:center">0101</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">7</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">8</td>
-  <td style="text-align:center">1000</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">8</td>
-  <td style="text-align:center">7</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">15</td>
-  <td style="text-align:center">1111</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">15</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">16</td>
-  <td style="text-align:center">0000</td>
-  <td style="text-align:center">1</td>
-</tr>
-<tr>
-  <td style="text-align:center">15</td>
-  <td style="text-align:center">15</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">30</td>
-  <td style="text-align:center">1110</td>
-  <td style="text-align:center">1</td>
-</tr>
-<tr>
-  <td style="text-align:center">15</td>
-  <td style="text-align:center">15</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">31</td>
-  <td style="text-align:center">1111</td>
-  <td style="text-align:center">1</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Carry Look-Ahead Adder(CLA)</strong> — Carry를 기다리지 않고 논리식으로 미리 계산합니다. 각 비트마다 두 신호를 만듭니다.</p>
-<table>
-<thead>
-<tr>
-  <th>신호</th>
-  <th>식</th>
-  <th>의미</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>P (Propagate)</td>
-  <td>A ^ B</td>
-  <td>아래에서 온 Carry를 위로 <strong>전달</strong>하는 조건</td>
-</tr>
-<tr>
-  <td>G (Generate)</td>
-  <td>A &amp; B</td>
-  <td>이 자리에서 Carry가 새로 <strong>발생</strong>하는 조건</td>
-</tr>
-</tbody>
-</table>
-<p>파일명: <code>c_adder4_cla.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_adder4_cla(
-    input  [3:0] a,
-    input  [3:0] b,
-    input        cin,
-    output [3:0] sum,
-    output       cout
-);
-
-    wire [3:0] p;   // Propagate
-    wire [3:0] g;   // Generate
-    wire       c1, c2, c3;
-
-    // 각 비트의 Propagate / Generate
-    assign p = a ^ b;
-    assign g = a &amp; b;
-
-    // Carry Look-Ahead 계산
-    assign c1   = g[0] | (p[0] &amp; cin);
-    assign c2   = g[1] | (p[1] &amp; g[0]) | (p[1] &amp; p[0] &amp; cin);
-    assign c3   = g[2] | (p[2] &amp; g[1]) | (p[2] &amp; p[1] &amp; g[0])
-                | (p[2] &amp; p[1] &amp; p[0] &amp; cin);
-    assign cout = g[3] | (p[3] &amp; g[2]) | (p[3] &amp; p[2] &amp; g[1])
-                | (p[3] &amp; p[2] &amp; p[1] &amp; g[0])
-                | (p[3] &amp; p[2] &amp; p[1] &amp; p[0] &amp; cin);
-
-    // SUM 계산
-    assign sum[0] = p[0] ^ cin;
-    assign sum[1] = p[1] ^ c1;
-    assign sum[2] = p[2] ^ c2;
-    assign sum[3] = p[3] ^ c3;
-
-endmodule
-</code></pre></div>
-<p>테스트벤치 <code>tb_adder4_cla.v</code>는 <code>tb_adder4.v</code>에서 DUT 이름만 <code>c_adder4_cla</code>로 바꾸면 되며, 결과는 Ripple Carry 가산기와 같아야 합니다.</p>
-<table>
-<thead>
-<tr>
-  <th>구분</th>
-  <th>Ripple Carry</th>
-  <th>Carry Look-Ahead</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>구조</td>
-  <td>Carry 순차 전달</td>
-  <td>Carry를 논리식으로 미리 계산</td>
-</tr>
-<tr>
-  <td>코드</td>
-  <td>Full Adder 인스턴스 연결</td>
-  <td><code>assign</code> 중심</td>
-</tr>
-<tr>
-  <td>장점</td>
-  <td>구조가 단순</td>
-  <td>Carry 전달 속도 개선</td>
-</tr>
-<tr>
-  <td>단점</td>
-  <td>비트 수 증가 시 지연 증가</td>
-  <td>논리식이 복잡해짐</td>
-</tr>
-</tbody>
-</table>
-</section><section class="section" id="s04"><h2><span class="num">04</span>7세그먼트 디코더와 가산기 표시</h2><p>Basys3의 7세그먼트는 <strong>공통 애노드(Common Anode)</strong> 이고 세그먼트·자리 선택 모두 <strong>Active Low</strong>(0일 때 켜짐)입니다. <code>seg[6:0]</code>은 <code>{g, f, e, d, c, b, a}</code> 순서입니다.</p>
-<table>
-<thead>
-<tr>
-  <th>신호</th>
-  <th>의미</th>
-  <th>켜지는 조건</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><code>an[3:0]</code></td>
-  <td>자리 선택</td>
-  <td>0</td>
-</tr>
-<tr>
-  <td><code>seg[6:0]</code> (CA~CG)</td>
-  <td>세그먼트</td>
-  <td>0</td>
-</tr>
-<tr>
-  <td><code>dp</code></td>
-  <td>소수점</td>
-  <td>0</td>
-</tr>
-</tbody>
-</table>
-<p>파일명: <code>c_sevenseg_7447.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_sevenseg_7447(
-    input      [3:0] bcd,
-    output reg [6:0] seg
-);
-    // BCD 값에 따라 세그먼트 패턴 선택 (Active Low)
-    always @(*) begin
-        case (bcd)
-            4'd0:    seg = 7'b1000000;
-            4'd1:    seg = 7'b1111001;
-            4'd2:    seg = 7'b0100100;
-            4'd3:    seg = 7'b0110000;
-            4'd4:    seg = 7'b0011001;
-            4'd5:    seg = 7'b0010010;
-            4'd6:    seg = 7'b0000010;
-            4'd7:    seg = 7'b1111000;
-            4'd8:    seg = 7'b0000000;
-            4'd9:    seg = 7'b0010000;
-            default: seg = 7'b1111111;   // 10~15는 꺼짐
-        endcase
-    end
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_sevenseg.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_sevenseg;
-
-    reg  [3:0] bcd;
-    wire [6:0] seg;
-
-    c_sevenseg_7447 dut(
-        .bcd(bcd),
-        .seg(seg)
-    );
-
-    initial begin
-        bcd = 4'd0; #10;
-        bcd = 4'd1; #10;
-        bcd = 4'd2; #10;
-        bcd = 4'd3; #10;
-        bcd = 4'd4; #10;
-        bcd = 4'd5; #10;
-        bcd = 4'd6; #10;
-        bcd = 4'd7; #10;
-        bcd = 4'd8; #10;
-        bcd = 4'd9; #10;
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<p><strong>4bit Adder + 7세그먼트 통합</strong></p>
-<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>SW 입력 → 4bit Adder → SUM[3:0] → 7세그먼트 디코더 → Basys3 FND
-                    └→ COUT → LED
-</code></pre></div>
-<p>파일명: <code>c_adder4_7seg_top.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_adder4_7seg_top(
-    input  [3:0] a,
-    input  [3:0] b,
-    input        cin,
-    output [6:0] seg,
-    output [3:0] an,
-    output       cout
-);
-
-    // 4bit Adder 결과
-    wire [3:0] sum;
-
-    // 4bit Adder 인스턴스
-    c_adder4_74283 u_adder(
-        .a(a),
-        .b(b),
-        .cin(cin),
-        .sum(sum),
-        .cout(cout)
-    );
-
-    // 7세그먼트 디코더 인스턴스
-    c_sevenseg_7447 u_7seg(
-        .bcd(sum),
-        .seg(seg)
-    );
-
-    // 4자리 중 오른쪽 1자리(AN0)만 사용
-    assign an = 4'b1110;
-
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_adder4_7seg_top.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_adder4_7seg_top;
-
-    reg  [3:0] a;
-    reg  [3:0] b;
-    reg        cin;
-    wire [6:0] seg;
-    wire [3:0] an;
-    wire       cout;
-
-    c_adder4_7seg_top dut(
-        .a(a),
-        .b(b),
-        .cin(cin),
-        .seg(seg),
-        .an(an),
-        .cout(cout)
-    );
-
-    initial begin
-        a = 4'd0;  b = 4'd0; cin = 0; #10;
-        a = 4'd3;  b = 4'd2; cin = 0; #10;
-        a = 4'd7;  b = 4'd1; cin = 0; #10;
-        a = 4'd8;  b = 4'd7; cin = 0; #10;
-        a = 4'd15; b = 4'd1; cin = 0; #10;
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<table>
-<thead>
-<tr>
-  <th style="text-align:center">A</th>
-  <th style="text-align:center">B</th>
-  <th style="text-align:center">계산</th>
-  <th>표시</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">0</td>
-  <td>0</td>
-</tr>
-<tr>
-  <td style="text-align:center">3</td>
-  <td style="text-align:center">2</td>
-  <td style="text-align:center">5</td>
-  <td>5</td>
-</tr>
-<tr>
-  <td style="text-align:center">7</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">8</td>
-  <td>8</td>
-</tr>
-<tr>
-  <td style="text-align:center">8</td>
-  <td style="text-align:center">7</td>
-  <td style="text-align:center">15</td>
-  <td>10 이상은 BCD 범위 밖 → 꺼짐(<code>default</code>)</td>
-</tr>
-<tr>
-  <td style="text-align:center">15</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">16</td>
-  <td>SUM = 0, COUT = 1</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Basys3 핀 연결 예시</strong></p>
-<table>
-<thead>
-<tr>
-  <th>포트</th>
-  <th>장치</th>
-  <th>핀</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><code>a[3:0]</code></td>
-  <td>SW0~SW3</td>
-  <td>V17, V16, W16, W17</td>
-</tr>
-<tr>
-  <td><code>b[3:0]</code></td>
-  <td>SW4~SW7</td>
-  <td>W15, V15, W14, W13</td>
-</tr>
-<tr>
-  <td><code>cin</code></td>
-  <td>SW8</td>
-  <td>V2</td>
-</tr>
-<tr>
-  <td><code>cout</code></td>
-  <td>LED0</td>
-  <td>U16</td>
-</tr>
-<tr>
-  <td><code>seg[0]</code>~<code>seg[6]</code></td>
-  <td>CA~CG</td>
-  <td>W7, W6, U8, V8, U5, V5, U7</td>
-</tr>
-<tr>
-  <td><code>an[0]</code>~<code>an[3]</code></td>
-  <td>AN0~AN3</td>
-  <td>U2, U4, V4, W4</td>
-</tr>
-</tbody>
-</table>
-<p><strong>다운로드 순서:</strong> <code>c_halfadder.v</code>, <code>c_fulladder.v</code>, <code>c_adder4_74283.v</code>, <code>c_sevenseg_7447.v</code>, <code>c_adder4_7seg_top.v</code> 추가 → Top Module을 <code>c_adder4_7seg_top</code>으로 지정 → XDC 추가·핀 확인 → Synthesis → Implementation → Bitstream → Program Device → 보드 출력과 시뮬레이션 결과 비교</p>
-<p>여러 자리를 동시에 표시하려면 자리를 빠르게 번갈아 켜는 <strong>순차 스캔 회로</strong>가 필요합니다. 이 내용은 4장 순차회로에서 다룹니다.</p>
-</section><section class="section" id="s05"><h2><span class="num">05</span>MUX와 DEMUX</h2><p>LEVEL 2-B의 흐름은 <strong>선택(MUX) → 분배(DEMUX) → 변환(Decoder) → 역변환(Encoder) → 비교(Comparator) → 연산(ALU)</strong> 입니다.</p>
-<p><strong>2:1 MUX (74157)</strong> — <code>sel</code>에 따라 두 입력 중 하나를 출력합니다. FPGA의 LUT 구조와 밀접한 회로입니다. 세 가지 모델링으로 작성해 같은 결과를 내는지 비교합니다.</p>
-<p>파일명: <code>c_mux2_gate.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_mux2_gate(
-    input  a,
-    input  b,
-    input  sel,
-    output y
-);
-    wire nsel, w0, w1;
-
-    not u0(nsel, sel);      // sel 반전
-    and u1(w0, a, nsel);    // sel=0이면 a 경로
-    and u2(w1, b, sel);     // sel=1이면 b 경로
-    or  u3(y, w0, w1);      // 두 경로 결합
-endmodule
-</code></pre></div>
-<p>파일명: <code>c_mux2_dataflow.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_mux2_dataflow(
-    input  a,
-    input  b,
-    input  sel,
-    output y
-);
-    // sel=0이면 a, sel=1이면 b
-    assign y = sel ? b : a;
-endmodule
-</code></pre></div>
-<p>파일명: <code>c_mux2_behavioral.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_mux2_behavioral(
-    input      a,
-    input      b,
-    input      sel,
-    output reg y
-);
-    always @(*) begin
-        if (sel)
-            y = b;
-        else
-            y = a;
-    end
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_mux2.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_mux2;
-
-    reg  a, b, sel;
-    wire y_gate, y_dataflow, y_behavioral;
-
-    c_mux2_gate       dut0(.a(a), .b(b), .sel(sel), .y(y_gate));
-    c_mux2_dataflow   dut1(.a(a), .b(b), .sel(sel), .y(y_dataflow));
-    c_mux2_behavioral dut2(.a(a), .b(b), .sel(sel), .y(y_behavioral));
-
-    initial begin
-        a = 0; b = 0; sel = 0; #10;
-        a = 1; b = 0; sel = 0; #10;   // y = a = 1
-        a = 0; b = 1; sel = 1; #10;   // y = b = 1
-        a = 1; b = 0; sel = 1; #10;   // y = b = 0
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<p><strong>1:2 DEMUX</strong> — 하나의 입력을 <code>sel</code>이 가리키는 출력으로 보냅니다.</p>
-<p>파일명: <code>c_demux2_dataflow.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_demux2_dataflow(
-    input  din,
-    input  sel,
-    output y0,
-    output y1
-);
-    assign y0 = ~sel &amp; din;   // sel=0이면 y0으로
-    assign y1 =  sel &amp; din;   // sel=1이면 y1로
-endmodule
-</code></pre></div>
-<p>파일명: <code>c_demux2_behavioral.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_demux2_behavioral(
-    input      din,
-    input      sel,
-    output reg y0,
-    output reg y1
-);
-    always @(*) begin
-        y0 = 0;     // 기본값으로 래치 생성 방지
-        y1 = 0;
-        case (sel)
-            1'b0: y0 = din;
-            1'b1: y1 = din;
-        endcase
-    end
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_demux2.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_demux2;
-
-    reg  din, sel;
-    wire y0_dataflow, y1_dataflow;
-    wire y0_behavioral, y1_behavioral;
-
-    c_demux2_dataflow   dut0(.din(din), .sel(sel), .y0(y0_dataflow),   .y1(y1_dataflow));
-    c_demux2_behavioral dut1(.din(din), .sel(sel), .y0(y0_behavioral), .y1(y1_behavioral));
-
-    initial begin
-        din = 0; sel = 0; #10;
-        din = 1; sel = 0; #10;   // y0 = 1
-        din = 1; sel = 1; #10;   // y1 = 1
-        din = 0; sel = 1; #10;
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<p><code>always @(*)</code> 안에서 모든 경로에 값을 주지 않으면 이전 값을 기억하는 <strong>래치(Latch)</strong> 가 의도치 않게 생깁니다. 블록 맨 앞에 기본값을 두는 습관이 이를 막아 줍니다.</p>
-</section><section class="section" id="s06"><h2><span class="num">06</span>디코더와 인코더</h2><p><strong>2-to-4 Decoder (74139)</strong> — 2비트 이진 입력을 4개 중 하나만 1인 <strong>One-Hot</strong> 출력으로 바꿉니다. 주소·메모리·장치·FSM 상태 선택에 쓰입니다.</p>
-<p>파일명: <code>c_decoder2_dataflow.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_decoder2_dataflow(
-    input  [1:0] a,
-    output [3:0] y
-);
-    assign y[0] = ~a[1] &amp; ~a[0];   // 00
-    assign y[1] = ~a[1] &amp;  a[0];   // 01
-    assign y[2] =  a[1] &amp; ~a[0];   // 10
-    assign y[3] =  a[1] &amp;  a[0];   // 11
-endmodule
-</code></pre></div>
-<p>파일명: <code>c_decoder2_behavioral.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_decoder2_behavioral(
-    input      [1:0] a,
-    output reg [3:0] y
-);
-    always @(*) begin
-        y = 4'b0000;
-        case (a)
-            2'b00: y = 4'b0001;
-            2'b01: y = 4'b0010;
-            2'b10: y = 4'b0100;
-            2'b11: y = 4'b1000;
-        endcase
-    end
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_decoder2.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_decoder2;
-
-    reg  [1:0] a;
-    wire [3:0] y_dataflow, y_behavioral;
-
-    c_decoder2_dataflow   dut0(.a(a), .y(y_dataflow));
-    c_decoder2_behavioral dut1(.a(a), .y(y_behavioral));
-
-    initial begin
-        a = 2'b00; #10;
-        a = 2'b01; #10;
-        a = 2'b10; #10;
-        a = 2'b11; #10;
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<p><strong>4-to-16 Decoder (74154)</strong> — 같은 방식을 16출력으로 확장합니다.</p>
-<p>파일명: <code>c_decoder4_behavioral.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_decoder4_behavioral(
-    input      [3:0]  a,
-    output reg [15:0] y
-);
-    always @(*) begin
-        y = 16'b0000000000000000;
-        case (a)
-            4'b0000: y = 16'b0000000000000001;
-            4'b0001: y = 16'b0000000000000010;
-            4'b0010: y = 16'b0000000000000100;
-            4'b0011: y = 16'b0000000000001000;
-            4'b0100: y = 16'b0000000000010000;
-            4'b0101: y = 16'b0000000000100000;
-            4'b0110: y = 16'b0000000001000000;
-            4'b0111: y = 16'b0000000010000000;
-            4'b1000: y = 16'b0000000100000000;
-            4'b1001: y = 16'b0000001000000000;
-            4'b1010: y = 16'b0000010000000000;
-            4'b1011: y = 16'b0000100000000000;
-            4'b1100: y = 16'b0001000000000000;
-            4'b1101: y = 16'b0010000000000000;
-            4'b1110: y = 16'b0100000000000000;
-            4'b1111: y = 16'b1000000000000000;
-        endcase
-    end
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_decoder4.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_decoder4;
-
-    reg  [3:0]  a;
-    wire [15:0] y;
-
-    c_decoder4_behavioral dut(.a(a), .y(y));
-
-    initial begin
-        a = 4'b0000; #10;
-        a = 4'b0001; #10;
-        a = 4'b0010; #10;
-        a = 4'b0100; #10;
-        a = 4'b1000; #10;
-        a = 4'b1111; #10;
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<p><strong>8-to-3 Priority Encoder (74148)</strong> — 디코더의 역변환입니다. 여러 입력이 동시에 1이면 <strong>가장 높은 번호</strong>를 우선합니다. <code>if-else if</code> 순서가 곧 우선순위입니다.</p>
-<p>파일명: <code>c_encoder8_behavioral.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_encoder8_behavioral(
-    input      [7:0] d,
-    output reg [2:0] y
-);
-    always @(*) begin
-        y = 3'b000;
-        if      (d[7]) y = 3'b111;
-        else if (d[6]) y = 3'b110;
-        else if (d[5]) y = 3'b101;
-        else if (d[4]) y = 3'b100;
-        else if (d[3]) y = 3'b011;
-        else if (d[2]) y = 3'b010;
-        else if (d[1]) y = 3'b001;
-        else if (d[0]) y = 3'b000;
-    end
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_encoder8.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_encoder8;
-
-    reg  [7:0] d;
-    wire [2:0] y;
-
-    c_encoder8_behavioral dut(.d(d), .y(y));
-
-    initial begin
-        d = 8'b00000001; #10;   // y = 0
-        d = 8'b00000010; #10;   // y = 1
-        d = 8'b00000100; #10;   // y = 2
-        d = 8'b10010000; #10;   // d[7]과 d[4] 동시 → y = 7
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-</section><section class="section" id="s07"><h2><span class="num">07</span>비교기와 8대1 MUX</h2><p><strong>4bit Comparator (7485)</strong> — 두 값의 크기를 비교해 <code>gt</code>(A&gt;B), <code>eq</code>(A=B), <code>lt</code>(A&lt;B) 중 하나를 1로 만듭니다.</p>
-<p>파일명: <code>c_comparator4_dataflow.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_comparator4_dataflow(
-    input  [3:0] a,
-    input  [3:0] b,
-    output       gt,
-    output       eq,
-    output       lt
-);
-    assign gt = (a &gt; b);
-    assign eq = (a == b);
-    assign lt = (a &lt; b);
-endmodule
-</code></pre></div>
-<p>파일명: <code>c_comparator4_behavioral.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_comparator4_behavioral(
-    input      [3:0] a,
-    input      [3:0] b,
-    output reg       gt,
-    output reg       eq,
-    output reg       lt
-);
-    always @(*) begin
-        gt = 0;
-        eq = 0;
-        lt = 0;
-        if (a &gt; b)
-            gt = 1;
-        else if (a == b)
-            eq = 1;
-        else
-            lt = 1;
-    end
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_comparator4.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_comparator4;
-
-    reg  [3:0] a, b;
-    wire gt_dataflow, eq_dataflow, lt_dataflow;
-    wire gt_behavioral, eq_behavioral, lt_behavioral;
-
-    c_comparator4_dataflow dut0(
-        .a(a), .b(b),
-        .gt(gt_dataflow), .eq(eq_dataflow), .lt(lt_dataflow)
-    );
-
-    c_comparator4_behavioral dut1(
-        .a(a), .b(b),
-        .gt(gt_behavioral), .eq(eq_behavioral), .lt(lt_behavioral)
-    );
-
-    initial begin
-        a = 4'd5; b = 4'd3; #10;   // gt
-        a = 4'd4; b = 4'd4; #10;   // eq
-        a = 4'd2; b = 4'd7; #10;   // lt
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<p><strong>8:1 MUX (74151)</strong> — 3비트 <code>sel</code>로 8개 입력 중 하나를 고릅니다.</p>
-<p>파일명: <code>c_mux8_behavioral.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_mux8_behavioral(
-    input      [7:0] d,
-    input      [2:0] sel,
-    output reg       y
-);
-    always @(*) begin
-        case (sel)
-            3'b000: y = d[0];
-            3'b001: y = d[1];
-            3'b010: y = d[2];
-            3'b011: y = d[3];
-            3'b100: y = d[4];
-            3'b101: y = d[5];
-            3'b110: y = d[6];
-            3'b111: y = d[7];
-        endcase
-    end
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_mux8.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_mux8;
-
-    reg  [7:0] d;
-    reg  [2:0] sel;
-    wire       y;
-
-    c_mux8_behavioral dut(.d(d), .sel(sel), .y(y));
-
-    initial begin
-        d = 8'b10101010;            // sel 0~7: y = 0,1,0,1,0,1,0,1
-        sel = 3'b000; #10;
-        sel = 3'b001; #10;
-        sel = 3'b010; #10;
-        sel = 3'b011; #10;
-        sel = 3'b100; #10;
-        sel = 3'b101; #10;
-        sel = 3'b110; #10;
-        sel = 3'b111; #10;
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-</section><section class="section" id="s08"><h2><span class="num">08</span>미니 ALU와 7세그먼트 표시</h2><p>74181은 여러 산술·논리 연산을 선택해 수행하는 4bit ALU IC입니다. 여기서는 그 기능 일부를 <code>op</code> 2비트로 고르는 <strong>Mini ALU</strong>로 구현합니다.</p>
-<table>
-<thead>
-<tr>
-  <th>OP</th>
-  <th>연산</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>00</td>
-  <td>A + B (Carry 출력)</td>
-</tr>
-<tr>
-  <td>01</td>
-  <td>A − B</td>
-</tr>
-<tr>
-  <td>10</td>
-  <td>A &amp; B</td>
-</tr>
-<tr>
-  <td>11</td>
-  <td>A OR B</td>
-</tr>
-</tbody>
-</table>
-<p>파일명: <code>c_alu4_behavioral.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_alu4_behavioral(
-    input      [3:0] a,
-    input      [3:0] b,
-    input      [1:0] op,
-    output reg [3:0] y,
-    output reg       cout
-);
-
-    // 내부 계산용 5bit 신호
-    reg [4:0] temp;
-
-    always @(*) begin
-        // 기본값
-        y    = 4'b0000;
-        cout = 1'b0;
-        temp = 5'b00000;
-
-        // op 값에 따라 연산 선택
-        case (op)
-            2'b00: begin            // ADD
-                temp = a + b;
-                y    = temp[3:0];
-                cout = temp[4];
-            end
-            2'b01: begin            // SUB
-                y    = a - b;
-                cout = 1'b0;
-            end
-            2'b10: begin            // AND
-                y    = a &amp; b;
-                cout = 1'b0;
-            end
-            2'b11: begin            // OR
-                y    = a | b;
-                cout = 1'b0;
-            end
-        endcase
-    end
-
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_alu4.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_alu4;
-
-    reg  [3:0] a, b;
-    reg  [1:0] op;
-    wire [3:0] y;
-    wire       cout;
-
-    c_alu4_behavioral dut(
-        .a(a), .b(b), .op(op),
-        .y(y), .cout(cout)
-    );
-
-    initial begin
-        a = 4'd5; b = 4'd3;
-        op = 2'b00; #10;    // ADD: 5 + 3 = 8
-        op = 2'b01; #10;    // SUB: 5 - 3 = 2
-        op = 2'b10; #10;    // AND: 0101 &amp; 0011 = 0001
-        op = 2'b11; #10;    // OR : 0101 | 0011 = 0111
-        a = 4'd15; b = 4'd1;
-        op = 2'b00; #10;    // ADD: 15 + 1 = 16 → y=0, cout=1
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<table>
-<thead>
-<tr>
-  <th style="text-align:center">A</th>
-  <th style="text-align:center">B</th>
-  <th style="text-align:center">OP</th>
-  <th>연산</th>
-  <th style="text-align:center">Y</th>
-  <th style="text-align:center">COUT</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td style="text-align:center">5</td>
-  <td style="text-align:center">3</td>
-  <td style="text-align:center">00</td>
-  <td>ADD</td>
-  <td style="text-align:center">8</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">5</td>
-  <td style="text-align:center">3</td>
-  <td style="text-align:center">01</td>
-  <td>SUB</td>
-  <td style="text-align:center">2</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">5</td>
-  <td style="text-align:center">3</td>
-  <td style="text-align:center">10</td>
-  <td>AND</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">5</td>
-  <td style="text-align:center">3</td>
-  <td style="text-align:center">11</td>
-  <td>OR</td>
-  <td style="text-align:center">7</td>
-  <td style="text-align:center">0</td>
-</tr>
-<tr>
-  <td style="text-align:center">15</td>
-  <td style="text-align:center">1</td>
-  <td style="text-align:center">00</td>
-  <td>ADD</td>
-  <td style="text-align:center">0</td>
-  <td style="text-align:center">1</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Basys3 통합</strong> — 결과를 16진수 한 자리로 표시합니다.</p>
-<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>SW[3:0] → A
-SW[7:4] → B      → Mini ALU → Y[3:0] → 7세그먼트 (0~F)
-SW[9:8] → OP               → COUT   → LED
-</code></pre></div>
-<p>파일명: <code>c_sevenseg_hex.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_sevenseg_hex(
-    input      [3:0] hex,
-    output reg [6:0] seg
-);
-    // Basys3 공통 애노드 기준 Active Low
-    always @(*) begin
-        case (hex)
-            4'h0:    seg = 7'b1000000;
-            4'h1:    seg = 7'b1111001;
-            4'h2:    seg = 7'b0100100;
-            4'h3:    seg = 7'b0110000;
-            4'h4:    seg = 7'b0011001;
-            4'h5:    seg = 7'b0010010;
-            4'h6:    seg = 7'b0000010;
-            4'h7:    seg = 7'b1111000;
-            4'h8:    seg = 7'b0000000;
-            4'h9:    seg = 7'b0010000;
-            4'hA:    seg = 7'b0001000;
-            4'hB:    seg = 7'b0000011;
-            4'hC:    seg = 7'b1000110;
-            4'hD:    seg = 7'b0100001;
-            4'hE:    seg = 7'b0000110;
-            4'hF:    seg = 7'b0001110;
-            default: seg = 7'b1111111;
-        endcase
-    end
-endmodule
-</code></pre></div>
-<p>파일명: <code>c_mini_alu_7seg_top.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module c_mini_alu_7seg_top(
-    input  [9:0] sw,
-    output [6:0] seg,
-    output [3:0] an,
-    output       led
-);
-
-    // 입력 분리
-    wire [3:0] a;
-    wire [3:0] b;
-    wire [1:0] op;
-
-    // ALU 출력
-    wire [3:0] y;
-    wire       cout;
-
-    // SW 매핑
-    assign a  = sw[3:0];
-    assign b  = sw[7:4];
-    assign op = sw[9:8];
-
-    // Mini ALU 인스턴스
-    c_alu4_behavioral u_alu(
-        .a(a),
-        .b(b),
-        .op(op),
-        .y(y),
-        .cout(cout)
-    );
-
-    // 7세그먼트 디코더 인스턴스
-    c_sevenseg_hex u_7seg(
-        .hex(y),
-        .seg(seg)
-    );
-
-    // 오른쪽 1자리만 사용, Carry는 LED로 확인
-    assign an  = 4'b1110;
-    assign led = cout;
-
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_mini_alu_7seg_top.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_mini_alu_7seg_top;
-
-    reg  [9:0] sw;
-    wire [6:0] seg;
-    wire [3:0] an;
-    wire       led;
-
-    c_mini_alu_7seg_top dut(
-        .sw(sw), .seg(seg), .an(an), .led(led)
-    );
-
-    initial begin
-        sw = 10'b00_0011_0101; #10;   // A=5, B=3, ADD → 8
-        sw = 10'b01_0011_0101; #10;   // SUB → 2
-        sw = 10'b10_0011_0101; #10;   // AND → 1
-        sw = 10'b11_0011_0101; #10;   // OR  → 7
-        sw = 10'b00_0001_1111; #10;   // A=15, B=1, ADD → 0, LED ON
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<p><strong>보드 확인 포인트:</strong> SW[3:0]=A, SW[7:4]=B, SW[9:8]=OP 연결, 결과가 0~F로 표시되는지, ADD에서 Carry가 생기면 LED가 켜지는지 확인합니다.</p>
+<header class="hero"><div class="hero-inner"><p class="kicker">DIGITAL DESIGN FPGA · CHAPTER 07</p><h1>제07장 · FSM 회로 설계</h1><p>FSM 구조 → Moore·Mealy → 구현 방식 비교 → 시퀀스 검출</p><div class="chips"><span class="chip">FSM</span><span class="chip">Moore</span><span class="chip">Mealy</span><span class="chip">Icarus Verilog</span></div></div></header>
+<div class="wrap"><nav class="toc" id="course-nav" aria-label="장과 절 탐색"></nav><main class="content" id="main-content"><section class="section" id="s00"><h2><span class="num">00</span>학습 안내</h2><p><strong>FSM(Finite State Machine, 유한 상태 머신)</strong> 은 디지털 시스템의 제어 흐름을 <strong>상태(State)</strong> 단위로 설계하는 방법입니다. 정해진 수의 상태를 갖고, 입력에 따라 상태를 옮겨 가며 출력을 만듭니다. UART 송수신, 신호등, 자판기, CPU 제어부가 모두 FSM입니다.</p>
 <table>
 <thead>
 <tr>
   <th>회로</th>
+  <th>특징</th>
+  <th>예</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>조합회로</td>
+  <td>현재 입력만 사용</td>
+  <td>MUX, Decoder, Adder</td>
+</tr>
+<tr>
+  <td>레지스터</td>
+  <td>클록에 맞춰 값 저장</td>
+  <td>데이터 저장</td>
+</tr>
+<tr>
+  <td>카운터</td>
+  <td>정해진 순서로 상태 증가</td>
+  <td>시간·개수 카운트</td>
+</tr>
+<tr>
+  <td><strong>FSM</strong></td>
+  <td><strong>조건에 따라 상태 전이</strong></td>
+  <td>제어기, 통신 제어, 모드 제어</td>
+</tr>
+</tbody>
+</table>
+<p>FSM은 &quot;시스템이 지금 어느 단계에 있는지&quot;를 기억하고, 입력 조건에 따라 다음 동작을 결정합니다.</p>
+<table>
+<thead>
+<tr>
+  <th>실습</th>
+  <th>종류</th>
   <th>핵심</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-  <td>MUX</td>
-  <td>입력 선택</td>
+  <td>버튼 3회 누름 감지기</td>
+  <td>Moore</td>
+  <td>상태가 곧 출력</td>
 </tr>
 <tr>
-  <td>DEMUX</td>
-  <td>출력 분배</td>
+  <td>동기식 직렬 프레임 수신기</td>
+  <td>Mealy</td>
+  <td>전이 화살표에 출력</td>
 </tr>
 <tr>
-  <td>Decoder</td>
-  <td>Binary → One-Hot</td>
+  <td>읽기 제어기 3가지 구현</td>
+  <td>Moore</td>
+  <td><code>assign</code> / 조합 <code>always</code> / 출력 레지스터</td>
 </tr>
 <tr>
-  <td>Encoder</td>
-  <td>One-Hot → Binary</td>
-</tr>
-<tr>
-  <td>Comparator</td>
-  <td>크기 비교</td>
-</tr>
-<tr>
-  <td>ALU</td>
-  <td>산술·논리 연산</td>
+  <td>연속 비트 검출기</td>
+  <td>Mealy</td>
+  <td>00 또는 11 검출</td>
 </tr>
 </tbody>
 </table>
-</section><section class="section" id="s09"><h2><span class="num">09</span>응용 미니 프로젝트 안내</h2><p>LEVEL 2-C는 지금까지 배운 MUX·Decoder·Encoder·Comparator·Adder·ALU·7세그먼트를 <strong>포트폴리오 수준의 미니 FPGA 프로젝트</strong>로 확장합니다. 기본 동작하는 소스와 테스트벤치를 출발점으로 삼아 팀별로 기능을 넓혀 갑니다.</p>
-<p><strong>권장 팀 역할</strong></p>
+</section><section class="section" id="s01"><h2><span class="num">01</span>FSM 구조와 상태 갱신</h2><p>FSM은 세 블록으로 이루어집니다.</p>
 <table>
 <thead>
 <tr>
+  <th>구성 요소</th>
   <th>역할</th>
-  <th>담당</th>
+  <th>회로 종류</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-  <td>RTL 설계</td>
-  <td>Verilog 작성</td>
+  <td>현재상태 레지스터 (State Register)</td>
+  <td>현재 상태 저장</td>
+  <td>순차회로 (플립플롭)</td>
 </tr>
 <tr>
-  <td>Verification</td>
-  <td>테스트벤치·시뮬레이션</td>
+  <td>차기상태 논리 (Next State Logic)</td>
+  <td>현재 상태 + 입력 → 다음 상태</td>
+  <td>조합회로</td>
 </tr>
 <tr>
-  <td>FPGA</td>
-  <td>Basys3 다운로드·검증</td>
-</tr>
-<tr>
-  <td>문서</td>
-  <td>결과 정리·발표 자료</td>
-</tr>
-</tbody>
-</table>
-<p><strong>프로젝트 사양서 항목:</strong> 프로젝트명 · 목적 · 입력(스위치 의미) · 출력(LED·7세그먼트 표시) · 핵심 회로 · 검증 방법(테스트벤치 입력 조건) · 보드 확인 방법 · 확장 기능</p>
-<p><strong>Basys3 입출력 기준</strong></p>
-<table>
-<thead>
-<tr>
-  <th>장치</th>
-  <th>개수</th>
-  <th>용도</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>슬라이드 스위치</td>
-  <td>16</td>
-  <td>조합회로 입력</td>
-</tr>
-<tr>
-  <td>LED</td>
-  <td>16</td>
-  <td>1비트 결과·상태</td>
-</tr>
-<tr>
-  <td>7세그먼트</td>
-  <td>4자리</td>
-  <td>숫자·문자·코드</td>
-</tr>
-<tr>
-  <td>푸시 버튼</td>
-  <td>5</td>
-  <td>확장 과제용</td>
+  <td>출력 논리 (Output Logic)</td>
+  <td>출력 생성</td>
+  <td>조합회로 (Moore/Mealy에 따라 다름)</td>
 </tr>
 </tbody>
 </table>
-<p>기본 과제는 <strong>오른쪽 1자리(<code>an = 4'b1110</code>)</strong> 만 사용합니다. 4자리 스캔 표시는 팀 확장 과제이며 4장에서 본격적으로 배웁니다.</p>
-<p><strong>공통 진행 순서:</strong> Add Sources → Add Simulation Sources → Run Behavioral Simulation → Waveform 확인 → RTL Analysis·Elaborated Design → XDC 추가 → Top Module 지정 → Synthesis → Implementation → Bitstream → Program Device → SW·LED·SEG 동작 확인</p>
-<p><strong>제출물:</strong> Verilog 소스(제공 + 팀 수정) · 테스트벤치(제공 + 추가 테스트) · Waveform 캡처 · RTL Schematic 캡처 · 보드 동작 사진 · 역할 분담표 · 개선 사항 · 발표 자료</p>
-</section><section class="section" id="s10"><h2><span class="num">10</span>과제 1~5 문자 표시와 판정 회로</h2><p><strong>과제 1 · 7세그먼트 이니셜 표시</strong> — SW[3:0]으로 문자를 골라 오른쪽 자리에 표시합니다.</p>
-<p>파일명: <code>p_initial_7seg.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module p_initial_7seg(
-    input      [3:0] sw,
-    output reg [6:0] seg,
-    output     [3:0] an
-);
-    assign an = 4'b1110;    // 오른쪽 1자리
-
-    // 공통 애노드 기준 Active Low
-    always @(*) begin
-        case (sw)
-            4'd0:    seg = 7'b0001000;   // A
-            4'd1:    seg = 7'b0000011;   // b
-            4'd2:    seg = 7'b1000110;   // C
-            4'd3:    seg = 7'b0100001;   // d
-            4'd4:    seg = 7'b0000110;   // E
-            4'd5:    seg = 7'b0001110;   // F
-            4'd6:    seg = 7'b0001001;   // H
-            4'd7:    seg = 7'b1000111;   // L
-            default: seg = 7'b1111111;   // blank
-        endcase
-    end
-endmodule
+<p><img src="images/ch07/svg_fsm_structure.svg" alt="차기상태 논리, 상태 레지스터, Moore와 Mealy 출력 논리로 이루어진 FSM 구조" />
+<em>그림 7-1. FSM 기본 구조 — Moore 출력은 <code>ps</code>, Mealy 출력은 <code>ps</code>와 입력으로 결정</em></p>
+<p><strong>상태는 클록 상승 에지에서만 바뀝니다.</strong> 차기상태 <code>ns</code>는 클록 사이 구간에 미리 계산되고, 에지 순간 <code>ps</code>로 저장됩니다. 입력이 바뀌어도 <code>ps</code>는 즉시 바뀌지 않습니다.</p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>always @(posedge clk) begin
+    ps &lt;= ns;
+end
 </code></pre></div>
-<p>파일명: <code>tb_initial_7seg.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_initial_7seg;
-
-    reg  [3:0] sw;
-    wire [6:0] seg;
-    wire [3:0] an;
-
-    p_initial_7seg dut(.sw(sw), .seg(seg), .an(an));
-
-    initial begin
-        sw = 4'd0;  #10;
-        sw = 4'd1;  #10;
-        sw = 4'd2;  #10;
-        sw = 4'd3;  #10;
-        sw = 4'd4;  #10;
-        sw = 4'd5;  #10;
-        sw = 4'd6;  #10;
-        sw = 4'd7;  #10;
-        sw = 4'd15; #10;    // blank
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<p>확장: 본인 이니셜, <code>HELP</code>·<code>OPEN</code> 같은 단어, 여러 자리 표시, 문자 테이블 개선</p>
-<p><strong>과제 2 · 디지털 비밀번호 잠금장치</strong> — 4비트 입력이 설정값과 같으면 LED0을 켜고 <code>O</code>를 표시합니다.</p>
-<p>파일명: <code>p_password_lock.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module p_password_lock(
-    input      [3:0] sw,
-    output           led,
-    output reg [6:0] seg,
-    output     [3:0] an
-);
-    // 비밀번호 상수
-    parameter PASSWORD = 4'b1010;
-
-    assign an  = 4'b1110;
-    assign led = (sw == PASSWORD);   // 비교 결과
-
-    always @(*) begin
-        if (sw == PASSWORD)
-            seg = 7'b1000000;   // O 형태
-        else
-            seg = 7'b0001001;   // X 대신 H 형태
-    end
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_password_lock.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_password_lock;
-
-    reg  [3:0] sw;
-    wire       led;
-    wire [6:0] seg;
-    wire [3:0] an;
-
-    p_password_lock dut(.sw(sw), .led(led), .seg(seg), .an(an));
-
-    initial begin
-        sw = 4'b0000; #10;
-        sw = 4'b0101; #10;
-        sw = 4'b1010; #10;   // 일치 → led = 1
-        sw = 4'b1111; #10;
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<p>확장: 비밀번호 변경, 실패 표시 문자 변경, 두 자리 이상 표시, 입력 유효성 LED</p>
-<p><strong>과제 3 · 가위바위보 승패 판정기</strong> — 두 사람의 2비트 입력(<code>01</code> 가위, <code>10</code> 바위, <code>11</code> 보)을 비교합니다. 입력 A는 SW[1:0], B는 SW[3:2]에 연결합니다.</p>
-<p>파일명: <code>p_rps_referee.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module p_rps_referee(
-    input      [1:0] a,
-    input      [1:0] b,
-    output reg [1:0] result,    // 00 비김/무효, 01 A 승, 10 B 승
-    output reg [6:0] seg,
-    output     [3:0] an
-);
-    assign an = 4'b1110;
-
-    always @(*) begin
-        // 기본값: 비김
-        result = 2'b00;
-        seg    = 7'b0100001;   // d
-
-        if (a == b) begin
-            result = 2'b00;
-            seg    = 7'b0100001;   // d (draw)
-        end
-        else begin
-            case ({a, b})
-                // A 승: 가위&gt;보, 바위&gt;가위, 보&gt;바위
-                4'b0111, 4'b1001, 4'b1110: begin
-                    result = 2'b01;
-                    seg    = 7'b0001000;   // A
-                end
-                // B 승
-                4'b1101, 4'b0110, 4'b1011: begin
-                    result = 2'b10;
-                    seg    = 7'b0000011;   // b
-                end
-                default: begin             // 00 포함 무효 입력
-                    result = 2'b00;
-                    seg    = 7'b1111111;   // blank
-                end
-            endcase
-        end
-    end
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_rps_referee.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_rps_referee;
-
-    reg  [1:0] a, b;
-    wire [1:0] result;
-    wire [6:0] seg;
-    wire [3:0] an;
-
-    p_rps_referee dut(.a(a), .b(b), .result(result), .seg(seg), .an(an));
-
-    initial begin
-        a = 2'b01; b = 2'b11; #10;   // A 승 (가위 &gt; 보)
-        a = 2'b10; b = 2'b01; #10;   // A 승 (바위 &gt; 가위)
-        a = 2'b11; b = 2'b10; #10;   // A 승 (보 &gt; 바위)
-        a = 2'b01; b = 2'b10; #10;   // B 승
-        a = 2'b10; b = 2'b10; #10;   // 비김
-        a = 2'b00; b = 2'b01; #10;   // 무효
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<p>확장: 무효 입력 표시, 점수판, 2자리 표시, 승패 LED 패턴</p>
-<p><strong>과제 4 · 4bit 가감산기</strong> — <code>mode</code>가 1이면 B를 반전하고 1을 더해 <strong>2의 보수 뺄셈</strong>을 합니다. A=SW[3:0], B=SW[7:4], Mode=SW[8], 결과는 LED[3:0], Carry/Borrow는 LED[4]입니다.</p>
-<p>파일명: <code>p_addsub4.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module p_addsub4(
-    input  [3:0] a,
-    input  [3:0] b,
-    input        mode,    // 0=ADD, 1=SUB
-    output [3:0] y,
-    output       cout
-);
-    wire [3:0] b_xor;
-    wire [4:0] result;
-
-    // mode=0: b 그대로, mode=1: b 반전
-    assign b_xor  = b ^ {4{mode}};
-
-    // mode=1일 때 +1을 더해 2의 보수 뺄셈
-    assign result = {1'b0, a} + {1'b0, b_xor} + mode;
-
-    assign y    = result[3:0];
-    assign cout = result[4];
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_addsub4.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_addsub4;
-
-    reg  [3:0] a, b;
-    reg        mode;
-    wire [3:0] y;
-    wire       cout;
-
-    p_addsub4 dut(.a(a), .b(b), .mode(mode), .y(y), .cout(cout));
-
-    initial begin
-        a = 4'd5;  b = 4'd3; mode = 0; #10;   // 5+3 = 8
-        a = 4'd5;  b = 4'd3; mode = 1; #10;   // 5-3 = 2, cout=1(빌림 없음)
-        a = 4'd3;  b = 4'd5; mode = 1; #10;   // 3-5 = 1110(-2), cout=0(빌림)
-        a = 4'd15; b = 4'd1; mode = 0; #10;   // carry
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<p>뺄셈에서 <code>cout = 1</code>이면 빌림(Borrow)이 없고, <code>cout = 0</code>이면 결과가 음수(2의 보수)입니다. 확장: 7세그먼트 표시, 음수 표시, Overflow LED, BCD 변환</p>
-<p><strong>과제 5 · 응급 상황 우선순위 인코더</strong> — 센서 네 개 중 가장 위험한 신호를 우선 출력합니다.</p>
 <table>
 <thead>
 <tr>
-  <th>입력</th>
+  <th>기호</th>
   <th>의미</th>
-  <th>우선순위</th>
-  <th>code</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-  <td>SW3</td>
-  <td>화재</td>
-  <td>최고</td>
-  <td>11</td>
+  <td><code>ps</code></td>
+  <td>Present State, 현재상태</td>
 </tr>
 <tr>
-  <td>SW2</td>
-  <td>침입</td>
-  <td>높음</td>
-  <td>10</td>
+  <td><code>ns</code></td>
+  <td>Next State, 차기상태</td>
 </tr>
 <tr>
-  <td>SW1</td>
-  <td>가스</td>
-  <td>중간</td>
-  <td>01</td>
-</tr>
-<tr>
-  <td>SW0</td>
-  <td>방문</td>
-  <td>낮음</td>
-  <td>00</td>
+  <td><code>&lt;=</code></td>
+  <td>순차회로용 Non-blocking 대입</td>
 </tr>
 </tbody>
 </table>
-<p>파일명: <code>p_priority_alarm.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module p_priority_alarm(
-    input      [3:0] sensor,
-    output reg [1:0] code,
-    output reg       valid
-);
-    always @(*) begin
-        code  = 2'b00;
-        valid = 1'b0;
-        if (sensor[3]) begin
-            code  = 2'b11;
-            valid = 1'b1;
-        end
-        else if (sensor[2]) begin
-            code  = 2'b10;
-            valid = 1'b1;
-        end
-        else if (sensor[1]) begin
-            code  = 2'b01;
-            valid = 1'b1;
-        end
-        else if (sensor[0]) begin
-            code  = 2'b00;
-            valid = 1'b1;
-        end
-    end
-endmodule
+</section><section class="section" id="s02"><h2><span class="num">02</span>FSM 코딩 가이드라인</h2><p><strong>1) 초기 상태를 명확히 정의한다</strong> — 리셋으로 <code>S0</code>·<code>IDLE</code>·<code>INIT</code> 같은 초기 상태에 들어가게 합니다. 초기 상태가 없으면 시뮬레이션에서 <code>x</code>가 되고 실제 회로도 엉뚱한 상태에서 시작할 수 있습니다. 수업에서는 동기 리셋을 기본으로, 필요할 때 비동기 리셋을 씁니다.</p>
+<p><strong>2) 세 블록으로 나누어 작성한다</strong> — 상태 저장, 상태 전이, 출력 생성의 위치가 명확해집니다.</p>
+<p><strong>3) 상태 레지스터는 플립플롭으로</strong></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>always @(posedge clk) begin
+    if (reset)
+        state &lt;= S0;
+    else
+        state &lt;= next_state;
+end
 </code></pre></div>
-<p>파일명: <code>tb_priority_alarm.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_priority_alarm;
-
-    reg  [3:0] sensor;
-    wire [1:0] code;
-    wire       valid;
-
-    p_priority_alarm dut(.sensor(sensor), .code(code), .valid(valid));
-
-    initial begin
-        sensor = 4'b0000; #10;   // valid = 0
-        sensor = 4'b0001; #10;   // 방문
-        sensor = 4'b0010; #10;   // 가스
-        sensor = 4'b0101; #10;   // 침입 우선
-        sensor = 4'b1000; #10;   // 화재
-        sensor = 4'b1111; #10;   // 화재 우선
-        $finish;
-    end
-
-endmodule
+<p><strong>4) 다음 상태 논리는 조합논리로</strong> — <code>case</code>로 현재 상태를 나누고, 각 상태 안에서 <code>if-else</code>로 입력을 판단합니다. 맨 앞의 <code>next_state = state;</code>는 래치를 막는 기본값입니다.</p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>always @(*) begin
+    next_state = state;
+    case (state)
+        S0: if (btn_pulse) next_state = S1; else next_state = S0;
+        S1: if (btn_pulse) next_state = S2; else next_state = S1;
+        S2: if (btn_pulse) next_state = S0; else next_state = S2;
+        default:           next_state = S0;
+    endcase
+end
 </code></pre></div>
-<p><code>valid</code>가 있어야 &quot;입력 없음&quot;과 &quot;방문(code 00)&quot;을 구별할 수 있습니다. 확장: 번호 표시, 경고 문자, Active-Low 입력, 실제 74148 구조와 비교</p>
-</section><section class="section" id="s11"><h2><span class="num">11</span>과제 6~10 연산과 변환 회로</h2><p><strong>과제 6 · 디지털 저울과 과적 알람</strong> — 스위치별 무게(1·2·4·8kg)를 합산하고 10kg 이상이면 과적을 알립니다.</p>
-<p>파일명: <code>p_digital_scale.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module p_digital_scale(
-    input  [3:0] sw,
-    output [3:0] weight,
-    output       overload
-);
-    // 스위치별 무게 합산
-    assign weight = (sw[0] ? 4'd1 : 4'd0)
-                  + (sw[1] ? 4'd2 : 4'd0)
-                  + (sw[2] ? 4'd4 : 4'd0)
-                  + (sw[3] ? 4'd8 : 4'd0);
+<p><strong>5) 출력 논리는 FSM 종류에 맞게</strong></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>// Moore: 현재 상태만 보고 출력
+assign led_on = (state == S1);
 
-    // 기준값 10kg 이상이면 과적
-    assign overload = (weight &gt;= 4'd10);
-endmodule
+// Mealy: 현재 상태와 입력을 함께 보고 출력
+assign detect = (state == S2) &amp;&amp; (input_bit == 1'b1);
 </code></pre></div>
-<p>파일명: <code>tb_digital_scale.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_digital_scale;
-
-    reg  [3:0] sw;
-    wire [3:0] weight;
-    wire       overload;
-
-    p_digital_scale dut(.sw(sw), .weight(weight), .overload(overload));
-
-    initial begin
-        sw = 4'b0000; #10;   // 0kg
-        sw = 4'b0001; #10;   // 1kg
-        sw = 4'b0111; #10;   // 7kg
-        sw = 4'b1010; #10;   // 10kg → 과적
-        sw = 4'b1111; #10;   // 15kg → 과적
-        $finish;
-    end
-
-endmodule
+<p><strong>6) 정의되지 않은 상태는 복구한다</strong> — 잡음·초기화 문제로 정의되지 않은 상태에 들어가도 <code>default</code>에서 초기 상태로 돌아오게 합니다.</p>
+<p><strong>7) 상태 이름은 숫자 대신 이름으로</strong></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>localparam S0 = 2'd0;
+localparam S1 = 2'd1;
+localparam S2 = 2'd2;
 </code></pre></div>
-<p>확장: 총 무게 표시, 기준값 변경 입력, 경고 문자, 2자리 출력</p>
-<p><strong>과제 7 · 4bit Barrel Shifter</strong> — 클록 없이 한 번에 지정한 거리만큼 이동합니다. <code>dir</code>=0은 왼쪽, 1은 오른쪽입니다.</p>
-<p>파일명: <code>p_barrel_shifter4.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module p_barrel_shifter4(
-    input      [3:0] data,
-    input      [1:0] amount,
-    input            dir,
-    output reg [3:0] y
-);
-    always @(*) begin
-        case ({dir, amount})
-            3'b000: y = data;
-            3'b001: y = data &lt;&lt; 1;
-            3'b010: y = data &lt;&lt; 2;
-            3'b011: y = data &lt;&lt; 3;
-            3'b100: y = data;
-            3'b101: y = data &gt;&gt; 1;
-            3'b110: y = data &gt;&gt; 2;
-            3'b111: y = data &gt;&gt; 3;
-        endcase
-    end
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_barrel_shifter4.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_barrel_shifter4;
-
-    reg  [3:0] data;
-    reg  [1:0] amount;
-    reg        dir;
-    wire [3:0] y;
-
-    p_barrel_shifter4 dut(.data(data), .amount(amount), .dir(dir), .y(y));
-
-    initial begin
-        data = 4'b1011;
-        dir = 0; amount = 0; #10;   // 1011
-        dir = 0; amount = 1; #10;   // 0110
-        dir = 0; amount = 2; #10;   // 1100
-        dir = 0; amount = 3; #10;   // 1000
-        dir = 1; amount = 1; #10;   // 0101
-        dir = 1; amount = 2; #10;   // 0010
-        dir = 1; amount = 3; #10;   // 0001
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<p>확장: 회전(Rotate), 결과 표시, 방향 LED, MUX 구조로 재작성</p>
-<p><strong>과제 8 · 5인 다수결 투표 회로</strong> — 5표 중 3표 이상이면 승인합니다.</p>
-<p>파일명: <code>p_majority5.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module p_majority5(
-    input  [4:0] vote,
-    output       approve,
-    output [2:0] count
-);
-    // ON 된 입력 개수 (3비트 결과 폭으로 덧셈)
-    assign count   = vote[0] + vote[1] + vote[2] + vote[3] + vote[4];
-
-    // 3표 이상이면 승인
-    assign approve = (count &gt;= 3);
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_majority5.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_majority5;
-
-    reg  [4:0] vote;
-    wire       approve;
-    wire [2:0] count;
-
-    p_majority5 dut(.vote(vote), .approve(approve), .count(count));
-
-    initial begin
-        vote = 5'b00000; #10;   // 0표
-        vote = 5'b00011; #10;   // 2표
-        vote = 5'b00111; #10;   // 3표 → 승인
-        vote = 5'b10101; #10;   // 3표 → 승인
-        vote = 5'b11111; #10;   // 5표 → 승인
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<p>확장: 승인·거절 문자, 투표 수 표시, Gate-Level 방식과 비교, 7인 투표</p>
-<p><strong>과제 9 · Binary ↔ Gray Code 변환</strong> — 인접한 값이 한 비트만 다른 그레이 코드로 바꾸고 다시 복원합니다.</p>
-<p>파일명: <code>p_gray_convert.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module p_gray_convert(
-    input  [3:0] bin,
-    output [3:0] gray,
-    output [3:0] bin_back
-);
-    // Binary → Gray
-    assign gray[3] = bin[3];
-    assign gray[2] = bin[3] ^ bin[2];
-    assign gray[1] = bin[2] ^ bin[1];
-    assign gray[0] = bin[1] ^ bin[0];
-
-    // Gray → Binary 복원
-    assign bin_back[3] = gray[3];
-    assign bin_back[2] = bin_back[3] ^ gray[2];
-    assign bin_back[1] = bin_back[2] ^ gray[1];
-    assign bin_back[0] = bin_back[1] ^ gray[0];
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_gray_convert.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_gray_convert;
-
-    reg  [3:0] bin;
-    wire [3:0] gray;
-    wire [3:0] bin_back;
-
-    p_gray_convert dut(.bin(bin), .gray(gray), .bin_back(bin_back));
-
-    initial begin
-        bin = 4'd0;  #10;
-        bin = 4'd1;  #10;
-        bin = 4'd2;  #10;   // gray 0011
-        bin = 4'd3;  #10;   // gray 0010
-        bin = 4'd4;  #10;
-        bin = 4'd7;  #10;
-        bin = 4'd15; #10;   // gray 1000
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<p><code>bin_back</code>이 항상 <code>bin</code>과 같아야 합니다. 확장: binary·gray 동시 LED 표시, 8bit 확장, 로터리 엔코더 응용 조사</p>
-<p><strong>과제 10 · Binary-to-Morse Visualizer</strong> — 숫자 0~9를 5자리 모스 부호로 바꿔 LED에 표시합니다(1 = dash, 0 = dot).</p>
-<p>파일명: <code>p_morse_visualizer.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module p_morse_visualizer(
-    input      [3:0] code,
-    output reg [4:0] morse
-);
-    always @(*) begin
-        case (code)
-            4'd0:    morse = 5'b11111;   // -----
-            4'd1:    morse = 5'b01111;   // .----
-            4'd2:    morse = 5'b00111;   // ..---
-            4'd3:    morse = 5'b00011;   // ...--
-            4'd4:    morse = 5'b00001;   // ....-
-            4'd5:    morse = 5'b00000;   // .....
-            4'd6:    morse = 5'b10000;   // -....
-            4'd7:    morse = 5'b11000;   // --...
-            4'd8:    morse = 5'b11100;   // ---..
-            4'd9:    morse = 5'b11110;   // ----.
-            default: morse = 5'b00000;
-        endcase
-    end
-endmodule
-</code></pre></div>
-<p>파일명: <code>tb_morse_visualizer.v</code></p>
-<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>module tb_morse_visualizer;
-
-    reg  [3:0] code;
-    wire [4:0] morse;
-
-    p_morse_visualizer dut(.code(code), .morse(morse));
-
-    initial begin
-        code = 4'd0;  #10;
-        code = 4'd1;  #10;
-        code = 4'd2;  #10;
-        code = 4'd5;  #10;
-        code = 4'd9;  #10;
-        code = 4'd15; #10;
-        $finish;
-    end
-
-endmodule
-</code></pre></div>
-<p>확장: 7세그먼트 패턴 추가, 문자 A~F 모스 부호, dot/dash LED 분리, 설명표 추가</p>
-</section><section class="section" id="s12"><h2><span class="num">12</span>정리와 점검</h2><p><strong>검증 흐름:</strong> 진리표 → 테스트벤치 → 시뮬레이션 → Waveform → RTL Schematic → FPGA 보드</p>
 <table>
 <thead>
 <tr>
-  <th>테스트벤치 원칙</th>
-  <th>내용</th>
+  <th>방식</th>
+  <th>특징</th>
+  <th>FSM 상태 정의</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-  <td>입력</td>
-  <td><code>reg</code> 선언</td>
+  <td><code>localparam</code></td>
+  <td>모듈 내부 고정값</td>
+  <td><strong>권장</strong></td>
+</tr>
+<tr>
+  <td><code>parameter</code></td>
+  <td>외부에서 변경 가능</td>
+  <td>필요 시</td>
+</tr>
+<tr>
+  <td><code>`define</code></td>
+  <td>컴파일 범위 전역 치환</td>
+  <td>가급적 지양 (여러 FSM의 같은 이름이 충돌)</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+  <th>원칙</th>
+  <th>핵심</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>초기 상태</td>
+  <td>리셋으로 초기 상태 진입</td>
+</tr>
+<tr>
+  <td>구조 분리</td>
+  <td>State Register · Next State Logic · Output Logic</td>
+</tr>
+<tr>
+  <td>상태 저장</td>
+  <td>플립플롭</td>
+</tr>
+<tr>
+  <td>다음 상태</td>
+  <td>현재 상태 + 입력</td>
 </tr>
 <tr>
   <td>출력</td>
-  <td><code>wire</code> 선언</td>
+  <td>Moore는 상태, Mealy는 상태 + 입력</td>
 </tr>
 <tr>
-  <td>DUT</td>
-  <td>검증 대상 모듈 인스턴스</td>
+  <td>예외 처리</td>
+  <td><code>default</code>로 복구</td>
 </tr>
 <tr>
-  <td>입력 변화</td>
-  <td><code>initial</code> 블록에서 작성</td>
-</tr>
-<tr>
-  <td>시간 지연</td>
-  <td><code>#10</code></td>
-</tr>
-<tr>
-  <td>종료</td>
-  <td><code>$finish</code></td>
+  <td>상태 이름</td>
+  <td><code>localparam</code></td>
 </tr>
 </tbody>
 </table>
-<p><strong>Waveform 확인:</strong> 입력·출력 변화 시점, 예상값과 실제값, 진리표 일치, Carry 전달, 세그먼트 패턴
-<strong>RTL Schematic 확인:</strong> 사용된 연산 회로, 중간 wire, 모듈 인스턴스 구조, <code>case</code> 문이 어떤 회로(MUX 등)로 합성되는지</p>
+</section><section class="section" id="s03"><h2><span class="num">03</span>Moore FSM 버튼 3회 감지기</h2><p><strong>Moore 머신</strong>은 출력이 <strong>현재 상태만으로</strong> 결정됩니다(출력 = f(현재상태)). 상태도에서는 출력을 <strong>원 안</strong>에 씁니다. 출력이 안정적이지만 입력 반응이 한 클록 늦을 수 있습니다. 스톱워치·디지털 시계·표시 모드처럼 상태 중심 제어에 적합합니다.</p>
+<p><strong>문제</strong> — 버튼 입력 <code>x</code>가 들어올 때마다 한 단계씩 이동하고, 3번 눌리면 <code>z = 1</code>로 LED를 켭니다.</p>
+<p><img src="images/ch07/svg_moore_3press.svg" alt="버튼 3회 누름 감지기 Moore 상태도" />
+<em>그림 7-2. <code>moore_button_3press_fsm</code> 상태도 (코드 기준)</em></p>
+<table>
+<thead>
+<tr>
+  <th>상태</th>
+  <th>의미</th>
+  <th style="text-align:center">출력 z</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>S0</td>
+  <td>0회 누름</td>
+  <td style="text-align:center">0</td>
+</tr>
+<tr>
+  <td>S1</td>
+  <td>1회 누름</td>
+  <td style="text-align:center">0</td>
+</tr>
+<tr>
+  <td>S2</td>
+  <td>2회 누름</td>
+  <td style="text-align:center">0</td>
+</tr>
+<tr>
+  <td>S3</td>
+  <td>3회 누름 완료</td>
+  <td style="text-align:center">1</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+  <th>PS</th>
+  <th style="text-align:center">x</th>
+  <th>NS</th>
+  <th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>S0</td>
+  <td style="text-align:center">0 / 1</td>
+  <td>S0 / S1</td>
+  <td>대기 / 1회 입력</td>
+</tr>
+<tr>
+  <td>S1</td>
+  <td style="text-align:center">0 / 1</td>
+  <td>S1 / S2</td>
+  <td>유지 / 2회 입력</td>
+</tr>
+<tr>
+  <td>S2</td>
+  <td style="text-align:center">0 / 1</td>
+  <td>S2 / S3</td>
+  <td>유지 / 3회 완료</td>
+</tr>
+<tr>
+  <td>S3</td>
+  <td style="text-align:center">-</td>
+  <td>S0</td>
+  <td>출력 후 초기화</td>
+</tr>
+</tbody>
+</table>
+<p><code>NS</code>는 곧바로 상태가 되는 것이 아니라 클록이 들어올 때 상태 레지스터에 저장되어 새로운 <code>PS</code>가 됩니다.</p>
+<p>파일명: <code>moore_button_3press_fsm.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
+module moore_button_3press_fsm(
+    input  wire       clk,
+    input  wire       reset,
+    input  wire       x,
+    output reg        z,
+    // 시뮬레이션 확인용 출력
+    output wire [1:0] state_dbg,
+    output wire [1:0] next_state_dbg
+);
+
+    // 상태 정의
+    localparam S0 = 2'd0;   // 버튼 0회 입력
+    localparam S1 = 2'd1;   // 버튼 1회 입력
+    localparam S2 = 2'd2;   // 버튼 2회 입력
+    localparam S3 = 2'd3;   // 버튼 3회 입력 완료
+
+    reg [1:0] current_state;
+    reg [1:0] next_state;
+
+    assign state_dbg      = current_state;
+    assign next_state_dbg = next_state;
+
+    // State Register: 클록 상승 에지에서 NS가 PS로 저장
+    always @(posedge clk) begin
+        if (reset)
+            current_state &lt;= S0;
+        else
+            current_state &lt;= next_state;
+    end
+
+    // Next State Logic: PS와 입력 x로 NS 결정
+    always @(*) begin
+        next_state = current_state;
+        case (current_state)
+            S0: begin
+                if (x == 1'b1) next_state = S1;   // 1회 입력
+                else           next_state = S0;   // 입력 없음
+            end
+            S1: begin
+                if (x == 1'b1) next_state = S2;   // 2회 입력
+                else           next_state = S1;   // 유지
+            end
+            S2: begin
+                if (x == 1'b1) next_state = S3;   // 3회 입력 완료
+                else           next_state = S2;   // 유지
+            end
+            S3: begin
+                next_state = S0;                  // 출력 후 초기 상태 복귀
+            end
+            default: begin
+                next_state = S0;
+            end
+        endcase
+    end
+
+    // Moore Output Logic: 출력 z는 현재 상태만 보고 결정
+    always @(*) begin
+        case (current_state)
+            S0:      z = 1'b0;
+            S1:      z = 1'b0;
+            S2:      z = 1'b0;
+            S3:      z = 1'b1;
+            default: z = 1'b0;
+        endcase
+    end
+
+endmodule
+</code></pre></div>
+<p>파일명: <code>tb_moore_button_3press_fsm.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
+module tb_moore_button_3press_fsm;
+
+    reg        clk, reset, x;
+    wire       z;
+    wire [1:0] state_dbg, next_state_dbg;
+
+    moore_button_3press_fsm dut (
+        .clk(clk), .reset(reset), .x(x), .z(z),
+        .state_dbg(state_dbg), .next_state_dbg(next_state_dbg)
+    );
+
+    // 100MHz Clock: 10ns 주기
+    always #5 clk = ~clk;
+
+    initial begin
+        clk = 1'b0; reset = 1'b1; x = 1'b0;
+        #20;
+        reset = 1'b0;
+
+        // Case 1: 버튼 3회 입력
+        // 예상 상태 S0 → S1 → S2 → S3 → S0, 출력 0 → 0 → 0 → 1 → 0
+        $display(&quot;Case 1 : button 3 press&quot;);
+        x = 1'b1; #10;   // S0 → S1
+        x = 1'b1; #10;   // S1 → S2
+        x = 1'b1; #10;   // S2 → S3
+        x = 1'b0; #10;   // S3 → S0, z = 1
+
+        // Case 2: 중간에 입력이 없으면 S1, S2 유지
+        reset = 1'b1; x = 1'b0; #20;
+        reset = 1'b0;           #10;
+        $display(&quot;Case 2 : button press with hold state&quot;);
+        x = 1'b1; #10;   // S0 → S1
+        x = 1'b0; #10;   // S1 → S1
+        x = 1'b1; #10;   // S1 → S2
+        x = 1'b0; #10;   // S2 → S2
+        x = 1'b1; #10;   // S2 → S3
+        x = 1'b0; #10;   // S3 → S0, z = 1
+        #20;
+        $finish;
+    end
+
+endmodule
+</code></pre></div>
+<table>
+<thead>
+<tr>
+  <th style="text-align:center">클록</th>
+  <th style="text-align:center">x</th>
+  <th>PS</th>
+  <th>NS</th>
+  <th style="text-align:center">z</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td>S0</td>
+  <td>S1</td>
+  <td style="text-align:center">0</td>
+</tr>
+<tr>
+  <td style="text-align:center">2</td>
+  <td style="text-align:center">1</td>
+  <td>S1</td>
+  <td>S2</td>
+  <td style="text-align:center">0</td>
+</tr>
+<tr>
+  <td style="text-align:center">3</td>
+  <td style="text-align:center">1</td>
+  <td>S2</td>
+  <td>S3</td>
+  <td style="text-align:center">0</td>
+</tr>
+<tr>
+  <td style="text-align:center">4</td>
+  <td style="text-align:center">-</td>
+  <td>S3</td>
+  <td>S0</td>
+  <td style="text-align:center"><strong>1</strong></td>
+</tr>
+</tbody>
+</table>
+<p><code>x</code>가 1이 되는 순간 바로 <code>z</code>가 1이 되는 것이 아니라, FSM이 <strong>S3에 도달했을 때</strong> <code>z</code>가 1이 됩니다. 이것이 Moore 출력의 핵심입니다.</p>
+</section><section class="section" id="s04"><h2><span class="num">04</span>Mealy FSM 직렬 프레임 수신기</h2><p><strong>Mealy 머신</strong>은 출력이 <strong>현재 상태와 입력</strong>으로 결정됩니다(출력 = f(현재상태, 입력)). 상태도에서는 출력을 <strong>전이 화살표 위</strong>에 <code>입력/출력</code>으로 씁니다. 반응이 빠르지만 입력 변화에 민감합니다. 에지 검출기, UART 수신, 핸드셰이크 제어에 자주 쓰입니다.</p>
+<p><strong>문제</strong> — 동기식 직렬 통신에서 클록마다 1비트 <code>w</code>가 들어옵니다. FSM이 수신 패턴을 판정해 출력 <code>y1y2</code>를 냅니다.</p>
+<table>
+<thead>
+<tr>
+  <th>입력 패턴</th>
+  <th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>11</code></td>
+  <td>짧은 정상 프레임</td>
+</tr>
+<tr>
+  <td><code>101</code></td>
+  <td>긴 정상 프레임</td>
+</tr>
+<tr>
+  <td><code>100</code></td>
+  <td>오류 프레임</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+  <th>출력 y1y2</th>
+  <th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>00</td>
+  <td>판정 없음</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td>유효 비트 1 수신</td>
+</tr>
+<tr>
+  <td>01</td>
+  <td>긴 프레임 확인 또는 오류 복귀</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td>정상 프레임 수신 완료</td>
+</tr>
+</tbody>
+</table>
+<p><img src="images/ch07/svg_mealy_frame.svg" alt="직렬 프레임 수신기 Mealy 상태도" />
+<em>그림 7-3. <code>mealy_serial_frame_fsm</code> 상태도 — 화살표 라벨은 <code>w/y1y2</code></em></p>
+<table>
+<thead>
+<tr>
+  <th>상태</th>
+  <th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>S0</td>
+  <td>수신 대기</td>
+</tr>
+<tr>
+  <td>S1</td>
+  <td>첫 번째 비트 1 수신</td>
+</tr>
+<tr>
+  <td>S3</td>
+  <td><code>10</code>까지 수신</td>
+</tr>
+<tr>
+  <td>S2</td>
+  <td>정상 프레임 완료 직전</td>
+</tr>
+<tr>
+  <td>S4</td>
+  <td>오류 프레임 확인 후 복귀 직전</td>
+</tr>
+</tbody>
+</table>
+<p>상태는 시간을 기다리는 것이 아니라 <strong>지금까지 받은 비트 패턴을 기억</strong>합니다. 예를 들어 S1에서 0이 들어오면 수신 비트열이 <code>10</code>이므로 S3으로 갑니다.</p>
+<table>
+<thead>
+<tr>
+  <th>PS</th>
+  <th style="text-align:center">w</th>
+  <th>NS</th>
+  <th style="text-align:center">y1y2</th>
+  <th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>S0</td>
+  <td style="text-align:center">0</td>
+  <td>S0</td>
+  <td style="text-align:center">00</td>
+  <td>프레임 시작 아님</td>
+</tr>
+<tr>
+  <td>S0</td>
+  <td style="text-align:center">1</td>
+  <td>S1</td>
+  <td style="text-align:center">10</td>
+  <td>시작 후보 1 수신</td>
+</tr>
+<tr>
+  <td>S1</td>
+  <td style="text-align:center">1</td>
+  <td>S2</td>
+  <td style="text-align:center">10</td>
+  <td><code>11</code> 정상 프레임</td>
+</tr>
+<tr>
+  <td>S1</td>
+  <td style="text-align:center">0</td>
+  <td>S3</td>
+  <td style="text-align:center">00</td>
+  <td><code>10</code>까지 수신</td>
+</tr>
+<tr>
+  <td>S3</td>
+  <td style="text-align:center">1</td>
+  <td>S2</td>
+  <td style="text-align:center">01</td>
+  <td><code>101</code> 정상 프레임</td>
+</tr>
+<tr>
+  <td>S3</td>
+  <td style="text-align:center">0</td>
+  <td>S4</td>
+  <td style="text-align:center">00</td>
+  <td><code>100</code> 오류 프레임</td>
+</tr>
+<tr>
+  <td>S2</td>
+  <td style="text-align:center">-</td>
+  <td>S0</td>
+  <td style="text-align:center">11</td>
+  <td>정상 완료 후 대기</td>
+</tr>
+<tr>
+  <td>S4</td>
+  <td style="text-align:center">-</td>
+  <td>S0</td>
+  <td style="text-align:center">01</td>
+  <td>오류 처리 후 대기</td>
+</tr>
+</tbody>
+</table>
+<p>파일명: <code>mealy_serial_frame_fsm.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
+module mealy_serial_frame_fsm(
+    input  wire       clk,
+    input  wire       reset,
+    input  wire       w,
+    output reg  [1:0] y,
+    // 시뮬레이션 확인용 출력
+    output wire [2:0] state_dbg,
+    output wire [2:0] next_state_dbg
+);
+
+    // 상태 정의
+    localparam S0 = 3'd0;   // 수신 대기
+    localparam S1 = 3'd1;   // 첫 번째 1 수신
+    localparam S2 = 3'd2;   // 정상 프레임 완료 직전
+    localparam S3 = 3'd3;   // 10까지 수신
+    localparam S4 = 3'd4;   // 오류 프레임 확인 후 복귀 직전
+
+    reg [2:0] current_state;
+    reg [2:0] next_state;
+
+    assign state_dbg      = current_state;
+    assign next_state_dbg = next_state;
+
+    // State Register
+    always @(posedge clk) begin
+        if (reset)
+            current_state &lt;= S0;
+        else
+            current_state &lt;= next_state;
+    end
+
+    // Next State Logic + Mealy Output Logic
+    // 출력 y는 현재 상태 PS와 입력 w를 함께 보고 결정
+    always @(*) begin
+        next_state = current_state;
+        y          = 2'b00;
+
+        case (current_state)
+            S0: begin
+                if (w == 1'b0) begin
+                    next_state = S0;  y = 2'b00;   // 프레임 시작 아님
+                end
+                else begin
+                    next_state = S1;  y = 2'b10;   // 첫 번째 1 수신
+                end
+            end
+            S1: begin
+                if (w == 1'b1) begin
+                    next_state = S2;  y = 2'b10;   // 11 정상 프레임
+                end
+                else begin
+                    next_state = S3;  y = 2'b00;   // 10까지 수신
+                end
+            end
+            S3: begin
+                if (w == 1'b1) begin
+                    next_state = S2;  y = 2'b01;   // 101 정상 프레임
+                end
+                else begin
+                    next_state = S4;  y = 2'b00;   // 100 오류 프레임
+                end
+            end
+            S2: begin
+                next_state = S0;  y = 2'b11;       // 정상 완료 후 대기
+            end
+            S4: begin
+                next_state = S0;  y = 2'b01;       // 오류 처리 후 대기
+            end
+            default: begin
+                next_state = S0;  y = 2'b00;
+            end
+        endcase
+    end
+
+endmodule
+</code></pre></div>
+<p>파일명: <code>tb_mealy_serial_frame_fsm.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
+module tb_mealy_serial_frame_fsm;
+
+    reg        clk, reset, w;
+    wire [1:0] y;
+    wire [2:0] state_dbg, next_state_dbg;
+
+    mealy_serial_frame_fsm dut (
+        .clk(clk), .reset(reset), .w(w), .y(y),
+        .state_dbg(state_dbg), .next_state_dbg(next_state_dbg)
+    );
+
+    // 100MHz Clock: 10ns 주기
+    always #5 clk = ~clk;
+
+    initial begin
+        clk = 1'b0; reset = 1'b1; w = 1'b0;
+        #20;
+        reset = 1'b0;
+
+        // Case 1: 입력 11 → 출력 10, 10, 11
+        $display(&quot;Case 1 : input 11&quot;);
+        w = 1'b1; #10;   // S0 → S1, y = 10
+        w = 1'b1; #10;   // S1 → S2, y = 10
+        w = 1'b0; #10;   // S2 → S0, y = 11
+
+        reset = 1'b1; w = 1'b0; #20;
+        reset = 1'b0;           #10;
+
+        // Case 2: 입력 101 → 출력 10, 00, 01, 11
+        $display(&quot;Case 2 : input 101&quot;);
+        w = 1'b1; #10;   // S0 → S1, y = 10
+        w = 1'b0; #10;   // S1 → S3, y = 00
+        w = 1'b1; #10;   // S3 → S2, y = 01
+        w = 1'b0; #10;   // S2 → S0, y = 11
+
+        reset = 1'b1; w = 1'b0; #20;
+        reset = 1'b0;           #10;
+
+        // Case 3: 입력 100 → 출력 10, 00, 00, 01
+        $display(&quot;Case 3 : input 100&quot;);
+        w = 1'b1; #10;   // S0 → S1, y = 10
+        w = 1'b0; #10;   // S1 → S3, y = 00
+        w = 1'b0; #10;   // S3 → S4, y = 00
+        w = 1'b0; #10;   // S4 → S0, y = 01
+        #20;
+        $finish;
+    end
+
+endmodule
+</code></pre></div>
+<table>
+<thead>
+<tr>
+  <th>입력 패턴</th>
+  <th>출력 흐름</th>
+  <th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>11</code></td>
+  <td>10 → 10 → 11</td>
+  <td>정상 완료</td>
+</tr>
+<tr>
+  <td><code>101</code></td>
+  <td>10 → 00 → 01 → 11</td>
+  <td>정상 완료</td>
+</tr>
+<tr>
+  <td><code>100</code></td>
+  <td>10 → 00 → 00 → 01</td>
+  <td>오류 복귀</td>
+</tr>
+</tbody>
+</table>
+</section><section class="section" id="s05"><h2><span class="num">05</span>Moore와 Mealy 비교</h2><table>
+<thead>
+<tr>
+  <th>구분</th>
+  <th>Moore</th>
+  <th>Mealy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>출력 결정</td>
+  <td>현재 상태</td>
+  <td>현재 상태 + 입력</td>
+</tr>
+<tr>
+  <td>출력 표기</td>
+  <td>상태 원 안</td>
+  <td>전이 화살표 위</td>
+</tr>
+<tr>
+  <td>입력의 직접 영향</td>
+  <td>없음</td>
+  <td>있음</td>
+</tr>
+<tr>
+  <td>응답 속도</td>
+  <td>한 클록 늦을 수 있음</td>
+  <td>빠를 수 있음</td>
+</tr>
+<tr>
+  <td>출력 안정성</td>
+  <td>높음</td>
+  <td>입력에 민감</td>
+</tr>
+<tr>
+  <td>상태 수</td>
+  <td>많아질 수 있음</td>
+  <td>줄어들 수 있음</td>
+</tr>
+<tr>
+  <td>대표 용도</td>
+  <td>모드 제어, 표시 제어</td>
+  <td>조건 검출, 통신 제어</td>
+</tr>
+</tbody>
+</table>
+<p>출력 안정성이 중요하면 <strong>Moore</strong>를 우선 고려하고, 입력 조건에 즉시 반응해야 하면 <strong>Mealy</strong>를 고려합니다.</p>
+</section><section class="section" id="s06"><h2><span class="num">06</span>Moore FSM 세 가지 구현 비교</h2><p>같은 읽기 제어기를 출력 작성 방식만 바꿔 세 가지로 구현하고, 하나의 테스트벤치로 비교합니다.</p>
+<table>
+<thead>
+<tr>
+  <th>상태</th>
+  <th>의미</th>
+  <th>출력</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>IDLE</td>
+  <td>대기</td>
+  <td>rd=0, ds=0</td>
+</tr>
+<tr>
+  <td>READ</td>
+  <td>읽기</td>
+  <td>rd=1</td>
+</tr>
+<tr>
+  <td>DLY</td>
+  <td>지연</td>
+  <td>rd=1</td>
+</tr>
+<tr>
+  <td>DONE</td>
+  <td>완료</td>
+  <td>ds=1</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+  <th>PS</th>
+  <th>조건</th>
+  <th>NS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>IDLE</td>
+  <td>go=0 / go=1</td>
+  <td>IDLE / READ</td>
+</tr>
+<tr>
+  <td>READ</td>
+  <td>항상</td>
+  <td>DLY</td>
+</tr>
+<tr>
+  <td>DLY</td>
+  <td>ws=0 / ws=1</td>
+  <td>READ / DONE</td>
+</tr>
+<tr>
+  <td>DONE</td>
+  <td>항상</td>
+  <td>IDLE</td>
+</tr>
+</tbody>
+</table>
+<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>fsm_book_example/
+├── FSM_ex1.v      # assign 문 출력
+├── FSM_ex2.v      # 조합 always 출력
+├── FSM_ex3.v      # 출력 레지스터
+└── tb_FSM_book.v  # 공통 테스트벤치 (매크로로 DUT 선택)
+</code></pre></div>
+<p>세 모듈 모두 <strong>비동기 Active-Low 리셋(<code>rstn</code>)</strong> 을 씁니다. <code>rstn = 0</code>이면 클록과 관계없이 즉시 IDLE이 됩니다.</p>
+<p>파일명: <code>FSM_ex1.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
+// assign 문으로 출력을 생성하는 Moore FSM
+module FSM_ex1 (
+    input  clk,
+    input  rstn,
+    input  go,
+    input  ws,
+    output rd,
+    output ds
+);
+
+    parameter IDLE = 2'b00,
+              READ = 2'b01,
+              DLY  = 2'b10,
+              DONE = 2'b11;
+
+    reg [1:0] state, next;
+
+    // 상태 레지스터: rstn=0에서 초기화, 이후 상승 에지마다 next 저장
+    always @(posedge clk or negedge rstn) begin
+        if (!rstn)
+            state &lt;= IDLE;
+        else
+            state &lt;= next;
+    end
+
+    // 다음 상태 로직
+    always @(state or go or ws) begin
+        next = 2'bx;
+        case (state)
+            IDLE : if (go) next = READ;   // 시작 입력 감지
+                   else    next = IDLE;   // 대기 유지
+            READ :         next = DLY;    // 읽기 후 지연
+            DLY  : if (ws) next = DONE;   // 대기 완료
+                   else    next = READ;   // 읽기 반복
+            DONE :         next = IDLE;   // 완료 후 대기 복귀
+        endcase
+    end
+
+    // 출력 로직: 현재 state만 기준
+    assign rd = ((state == READ) || (state == DLY));
+    assign ds = (state == DONE);
+
+endmodule
+</code></pre></div>
+<p>파일명: <code>FSM_ex2.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
+// always 조합회로 블록에서 출력을 생성하는 Moore FSM
+module FSM_ex2 (
+    input      clk,
+    input      rstn,
+    input      go,
+    input      ws,
+    output reg rd,
+    output reg ds
+);
+
+    parameter IDLE = 2'b00,
+              READ = 2'b01,
+              DLY  = 2'b10,
+              DONE = 2'b11;
+
+    reg [1:0] state, next;
+
+    // 상태 레지스터
+    always @(posedge clk or negedge rstn) begin
+        if (!rstn)
+            state &lt;= IDLE;
+        else
+            state &lt;= next;
+    end
+
+    // 다음 상태 + 출력 로직 (조합회로): 모든 출력에 기본값 먼저 지정
+    always @(state or go or ws) begin
+        next = 2'bx;
+        rd   = 1'b0;
+        ds   = 1'b0;
+        case (state)
+            IDLE : begin
+                if (go) next = READ;
+                else    next = IDLE;
+            end
+            READ : begin
+                rd   = 1'b1;            // READ 상태 출력
+                next = DLY;
+            end
+            DLY : begin
+                rd = 1'b1;              // DLY 상태 출력
+                if (ws) next = DONE;
+                else    next = READ;
+            end
+            DONE : begin
+                ds   = 1'b1;            // 완료 출력
+                next = IDLE;
+            end
+        endcase
+    end
+
+endmodule
+</code></pre></div>
+<p>파일명: <code>FSM_ex3.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
+// 출력 레지스터를 사용하는 Moore FSM
+module FSM_ex3 (
+    input      clk,
+    input      rstn,
+    input      go,
+    input      ws,
+    output reg rd,
+    output reg ds
+);
+
+    parameter IDLE = 2'b00,
+              READ = 2'b01,
+              DLY  = 2'b10,
+              DONE = 2'b11;
+
+    reg [1:0] state, next;
+
+    // 상태 레지스터
+    always @(posedge clk or negedge rstn) begin
+        if (!rstn)
+            state &lt;= IDLE;
+        else
+            state &lt;= next;
+    end
+
+    // 다음 상태 로직
+    always @(state or go or ws) begin
+        next = 2'bx;
+        case (state)
+            IDLE : if (go) next = READ;
+                   else    next = IDLE;
+            READ :         next = DLY;
+            DLY  : if (ws) next = DONE;
+                   else    next = READ;
+            DONE :         next = IDLE;
+        endcase
+    end
+
+    // 출력 레지스터: next 기준으로 저장해 상태 전이와 출력 타이밍을 맞춤
+    always @(posedge clk or negedge rstn) begin
+        if (!rstn) begin
+            ds &lt;= 1'b0;
+            rd &lt;= 1'b0;
+        end
+        else begin
+            ds &lt;= 1'b0;     // 기본값
+            rd &lt;= 1'b0;
+            case (next)
+                READ : rd &lt;= 1'b1;
+                DLY  : rd &lt;= 1'b1;
+                DONE : ds &lt;= 1'b1;
+            endcase
+        end
+    end
+
+endmodule
+</code></pre></div>
+<p><code>next = 2'bx;</code>는 &quot;모든 경우를 case에서 정한다&quot;는 뜻으로, 합성기가 남는 조합을 자유롭게 최적화하도록 돕습니다. 네 상태를 모두 다루므로 실제로 <code>x</code>가 남지 않습니다.</p>
+<table>
+<thead>
+<tr>
+  <th>구분</th>
+  <th>FSM_ex1</th>
+  <th>FSM_ex2</th>
+  <th>FSM_ex3</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>출력 생성</td>
+  <td><code>assign</code></td>
+  <td>조합 <code>always</code></td>
+  <td>순차 <code>always</code></td>
+</tr>
+<tr>
+  <td>출력 기준</td>
+  <td><code>state</code></td>
+  <td><code>state</code></td>
+  <td><code>next</code></td>
+</tr>
+<tr>
+  <td>출력 타입</td>
+  <td>wire</td>
+  <td>reg</td>
+  <td>reg</td>
+</tr>
+<tr>
+  <td>출력 안정성</td>
+  <td>보통</td>
+  <td>보통</td>
+  <td>높음 (글리치 없음)</td>
+</tr>
+<tr>
+  <td>장점</td>
+  <td>짧고 간단</td>
+  <td>상태별 출력·전이를 한곳에서 확인</td>
+  <td>출력이 클록에 맞춰 안정</td>
+</tr>
+<tr>
+  <td>주의</td>
+  <td>조건이 복잡하면 가독성 저하</td>
+  <td>출력 기본값 필수</td>
+  <td>클록 기준 타이밍 확인</td>
+</tr>
+</tbody>
+</table>
+</section><section class="section" id="s07"><h2><span class="num">07</span>공통 테스트벤치와 Icarus Verilog</h2><p><code>`ifdef</code>로 컴파일할 때 검증할 DUT를 고릅니다.</p>
+<p>파일명: <code>tb_FSM_book.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
+// FSM_ex1, FSM_ex2, FSM_ex3 공통 테스트벤치
+module tb_FSM_book;
+
+    reg  clk, rstn, go, ws;
+    wire rd, ds;
+
+    // DUT 선택: TEST_EX1, TEST_EX2, TEST_EX3 중 하나를 정의
+`ifdef TEST_EX1
+    FSM_ex1 dut (.clk(clk), .rstn(rstn), .go(go), .ws(ws), .rd(rd), .ds(ds));
+`elsif TEST_EX2
+    FSM_ex2 dut (.clk(clk), .rstn(rstn), .go(go), .ws(ws), .rd(rd), .ds(ds));
+`elsif TEST_EX3
+    FSM_ex3 dut (.clk(clk), .rstn(rstn), .go(go), .ws(ws), .rd(rd), .ds(ds));
+`else
+    initial begin
+        $display(&quot;ERROR: Define TEST_EX1, TEST_EX2, or TEST_EX3&quot;);
+        $finish;
+    end
+`endif
+
+    // 10ns 주기(100MHz) Clock
+    initial begin
+        clk = 1'b0;
+        forever #5 clk = ~clk;
+    end
+
+    // 입력 시나리오
+    initial begin
+        rstn = 1'b0; go = 1'b0; ws = 1'b0;   // reset 활성화
+        #20;
+        rstn = 1'b1;                         // reset 해제
+        #20;
+        go = 1'b0; ws = 1'b0;                // IDLE 유지
+        #20;
+        go = 1'b1;                           // IDLE → READ
+        #10;
+        go = 1'b0;                           // go 펄스 종료
+        #40;
+        ws = 1'b0;                           // DLY → READ 반복
+        #20;
+        ws = 1'b1;                           // DLY → DONE
+        #20;
+        ws = 1'b0;                           // DONE 이후 IDLE
+        #30;
+        $finish;
+    end
+
+    // GTKWave용 파형 파일
+    initial begin
+        $dumpfile(&quot;tb_FSM_book.vcd&quot;);
+        $dumpvars(0, tb_FSM_book);
+    end
+
+    // 콘솔 출력
+    initial begin
+        $monitor(&quot;time=%0t | rstn=%b go=%b ws=%b | rd=%b ds=%b&quot;,
+                 $time, rstn, go, ws, rd, ds);
+    end
+
+endmodule
+</code></pre></div>
+<p><strong>Ubuntu에서 Icarus Verilog로 실행</strong></p>
+<div class="codeblock"><div class="codebar"><span>bash</span></div><pre><code># Icarus Verilog와 파형 뷰어 설치
+sudo apt install -y iverilog gtkwave
+
+# FSM_ex1 검증: -D로 매크로 정의 → 컴파일 → 실행
+iverilog -D TEST_EX1 -o sim_ex1 FSM_ex1.v tb_FSM_book.v
+vvp sim_ex1
+
+# 같은 방식으로 EX2, EX3 검증
+iverilog -D TEST_EX2 -o sim_ex2 FSM_ex2.v tb_FSM_book.v &amp;&amp; vvp sim_ex2
+iverilog -D TEST_EX3 -o sim_ex3 FSM_ex3.v tb_FSM_book.v &amp;&amp; vvp sim_ex3
+
+# 파형 확인
+gtkwave tb_FSM_book.vcd
+</code></pre></div>
+<table>
+<thead>
+<tr>
+  <th>구간</th>
+  <th>조건</th>
+  <th>확인 내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Reset</td>
+  <td>rstn=0</td>
+  <td>초기화</td>
+</tr>
+<tr>
+  <td>대기</td>
+  <td>go=0</td>
+  <td>IDLE 유지</td>
+</tr>
+<tr>
+  <td>시작</td>
+  <td>go=1</td>
+  <td>READ 진입</td>
+</tr>
+<tr>
+  <td>읽기</td>
+  <td>READ, DLY</td>
+  <td>rd=1</td>
+</tr>
+<tr>
+  <td>완료</td>
+  <td>DONE</td>
+  <td>ds=1</td>
+</tr>
+<tr>
+  <td>복귀</td>
+  <td>DONE 이후</td>
+  <td>IDLE 복귀</td>
+</tr>
+</tbody>
+</table>
+<p>EX1·EX2는 상태가 바뀐 직후 출력이 바뀌고, EX3는 <code>next</code>를 클록에 맞춰 저장하므로 출력이 <strong>상태와 같은 에지</strong>에서 바뀝니다. 세 결과의 <code>rd</code>·<code>ds</code> 파형을 나란히 비교해 보세요.</p>
+</section><section class="section" id="s08"><h2><span class="num">08</span>Mealy FSM 연속 비트 검출기</h2><p>1비트 직렬 입력 <code>din_bit</code>에서 <strong>같은 값이 두 번 이상 연속(00 또는 11)</strong> 되면 <code>dout_bit = 1</code>을 내는 Mealy 시퀀스 검출기입니다.</p>
+<table>
+<thead>
+<tr>
+  <th>신호</th>
+  <th>방향</th>
+  <th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>clk</code></td>
+  <td>input</td>
+  <td>클록</td>
+</tr>
+<tr>
+  <td><code>rst</code></td>
+  <td>input</td>
+  <td>비동기 리셋 (Active High)</td>
+</tr>
+<tr>
+  <td><code>din_bit</code></td>
+  <td>input</td>
+  <td>1비트 직렬 입력</td>
+</tr>
+<tr>
+  <td><code>dout_bit</code></td>
+  <td>output</td>
+  <td>연속 0 또는 연속 1 검출</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+  <th style="text-align:center">직전 입력</th>
+  <th style="text-align:center">현재 입력</th>
+  <th style="text-align:center">출력</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+</tr>
+<tr>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
+</tr>
+<tr>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">0</td>
+</tr>
+<tr>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+</tr>
+</tbody>
+</table>
+<p><img src="images/ch07/seq_det_mealy_textbook.png" alt="연속된 0 또는 1을 검출하는 Mealy 상태도 교재 그림" />
+<em>그림 7-4. 연속 0 또는 1 검출 Mealy 상태도 — 출력은 화살표 라벨의 <code>입력/출력</code> (출처: 원 강의자료 인용 교재 도판)</em></p>
+<p>파일명: <code>seq_det_mealy.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
+// 연속된 0 또는 연속된 1을 검출하는 Mealy FSM
+// 입력 din_bit가 00 또는 11 패턴을 만들면 dout_bit = 1
+module seq_det_mealy (
+    input  clk,
+    input  rst,
+    input  din_bit,
+    output dout_bit
+);
+
+    // 상태 선언
+    parameter START     = 3'b000;
+    parameter RD0_ONCE  = 3'b001;
+    parameter RD1_ONCE  = 3'b010;
+    parameter RD0_TWICE = 3'b011;
+    parameter RD1_TWICE = 3'b100;
+
+    reg [2:0] state_reg;
+    reg [2:0] next_state;
+
+    // 다음 상태 결정: 현재 상태와 현재 입력 기준
+    always @(state_reg or din_bit) begin
+        case (state_reg)
+            START : begin
+                if (din_bit == 1'b0) next_state = RD0_ONCE;    // 첫 번째 0
+                else                 next_state = RD1_ONCE;    // 첫 번째 1
+            end
+            RD0_ONCE : begin
+                if (din_bit == 1'b0) next_state = RD0_TWICE;   // 00
+                else                 next_state = RD1_ONCE;    // 01
+            end
+            RD0_TWICE : begin
+                if (din_bit == 1'b0) next_state = RD0_TWICE;   // 0 유지
+                else                 next_state = RD1_ONCE;    // 01로 전환
+            end
+            RD1_ONCE : begin
+                if (din_bit == 1'b0) next_state = RD0_ONCE;    // 10
+                else                 next_state = RD1_TWICE;   // 11
+            end
+            RD1_TWICE : begin
+                if (din_bit == 1'b0) next_state = RD0_ONCE;    // 10으로 전환
+                else                 next_state = RD1_TWICE;   // 1 유지
+            end
+            default : begin
+                next_state = START;                            // 예외 상태 복귀
+            end
+        endcase
+    end
+
+    // 상태 레지스터: 클록 상승 에지에서만 변경
+    always @(posedge clk or posedge rst) begin
+        if (rst)
+            state_reg &lt;= START;
+        else
+            state_reg &lt;= next_state;
+    end
+
+    // 출력 결정: 현재 상태와 현재 입력을 함께 사용 (Mealy)
+    // 수정: ONCE 상태도 포함해야 같은 값이 '두 번째'로 들어오는 순간 검출됨
+    assign dout_bit = (((state_reg == RD0_ONCE) || (state_reg == RD0_TWICE)) &amp;&amp; (din_bit == 1'b0)) ||
+                      (((state_reg == RD1_ONCE) || (state_reg == RD1_TWICE)) &amp;&amp; (din_bit == 1'b1));
+
+endmodule
+</code></pre></div>
+<blockquote>
+<p><strong>출력식 분석:</strong> 출력 조건을 <code>RD0_TWICE</code>·<code>RD1_TWICE</code> 상태로만 두면(<code>(state_reg == RD0_TWICE) &amp;&amp; (din_bit == 1'b0)</code> …), 같은 값이 <strong>세 번째</strong>로 들어올 때 비로소 1이 됩니다. Mealy 출력은 &quot;지금 들어온 비트&quot;를 함께 보므로, 직전 비트가 같았다는 사실(ONCE 상태)과 현재 비트만으로 두 번째 연속을 바로 판정할 수 있습니다. 위 교재 상태도에서도 <code>rd0_once</code>에서 0이 들어오는 전이가 <code>0/1</code>로 표기되어 있어 수정한 출력식과 일치합니다. 이렇게 고치면 <code>RD0_ONCE</code>와 <code>RD0_TWICE</code>의 동작이 같아지므로 상태를 3개(START, 직전 0, 직전 1)로 줄이는 최소화도 가능합니다. Mealy가 Moore보다 상태 수를 줄일 수 있다는 점을 보여 주는 좋은 예입니다.</p>
+</blockquote>
+<p>파일명: <code>tb_seq_det_mealy.v</code></p>
+<div class="codeblock"><div class="codebar"><span>verilog</span></div><pre><code>`timescale 1ns / 1ps
+// seq_det_mealy 검증용 Testbench
+module tb_seq_det_mealy;
+
+    reg  clk, rst, din_bit;
+    wire dout_bit;
+
+    seq_det_mealy dut (
+        .clk     (clk),
+        .rst     (rst),
+        .din_bit (din_bit),
+        .dout_bit(dout_bit)
+    );
+
+    // 10ns Clock
+    initial begin
+        clk = 1'b0;
+        forever #5 clk = ~clk;
+    end
+
+    // 1비트 입력을 Clock 1주기 동안 인가
+    task send_bit;
+        input bit_value;
+        begin
+            din_bit = bit_value;
+            #10;
+        end
+    endtask
+
+    // 입력 패턴: 0 1 0 1 1 1 0 1 0 0 1 1 0 1 0 0
+    initial begin
+        rst = 1'b1; din_bit = 1'b0;
+        #20;
+        rst = 1'b0;
+
+        send_bit(1'b0);
+        send_bit(1'b1);
+        send_bit(1'b0);
+        send_bit(1'b1);
+        send_bit(1'b1);   // 11 검출
+        send_bit(1'b1);   // 11 유지 검출
+        send_bit(1'b0);
+        send_bit(1'b1);
+        send_bit(1'b0);
+        send_bit(1'b0);   // 00 검출
+        send_bit(1'b1);
+        send_bit(1'b1);   // 11 검출
+        send_bit(1'b0);
+        send_bit(1'b1);
+        send_bit(1'b0);
+        send_bit(1'b0);   // 00 검출
+        #30;
+        $finish;
+    end
+
+    initial begin
+        $dumpfile(&quot;tb_seq_det_mealy.vcd&quot;);
+        $dumpvars(0, tb_seq_det_mealy);
+    end
+
+    initial begin
+        $monitor(&quot;time=%0t | rst=%b din_bit=%b | dout_bit=%b&quot;,
+                 $time, rst, din_bit, dout_bit);
+    end
+
+endmodule
+</code></pre></div>
+<p><strong>예상 출력</strong></p>
+<div class="codeblock"><div class="codebar"><span>text</span></div><pre><code>입력  : 0 1 0 1 1 1 0 1 0 0 1 1 0 1 0 0
+검출  : 0 0 0 0 1 1 0 0 0 1 0 1 0 0 0 1
+</code></pre></div>
+<p><img src="images/ch07/seq_det_example.png" alt="din_bit와 dout_bit 예시 그림" />
+<em>그림 7-5. <code>din_bit</code>와 <code>dout_bit</code> 동작 예 (출처: 원 강의자료 인용 교재 도판)</em></p>
+<table>
+<thead>
+<tr>
+  <th style="text-align:center">순서</th>
+  <th style="text-align:center">din_bit</th>
+  <th style="text-align:center">검출</th>
+  <th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td style="text-align:center">5</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td><code>11</code> 검출</td>
+</tr>
+<tr>
+  <td style="text-align:center">6</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td><code>11</code> 유지</td>
+</tr>
+<tr>
+  <td style="text-align:center">10</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+  <td><code>00</code> 검출</td>
+</tr>
+<tr>
+  <td style="text-align:center">12</td>
+  <td style="text-align:center">1</td>
+  <td style="text-align:center">1</td>
+  <td><code>11</code> 검출</td>
+</tr>
+<tr>
+  <td style="text-align:center">16</td>
+  <td style="text-align:center">0</td>
+  <td style="text-align:center">1</td>
+  <td><code>00</code> 검출</td>
+</tr>
+</tbody>
+</table>
+<p><strong>파형 읽는 법:</strong> Mealy 출력은 현재 입력에 바로 반응하므로, 각 입력 비트의 판정값은 그 비트가 저장되는 <strong>클록 상승 에지 직전</strong>의 <code>dout_bit</code>입니다. 이 테스트벤치는 입력을 두 에지 사이에서 바꾸기 때문에, 에지 직후에는 상태가 이미 현재 비트를 반영한 채 같은 비트와 다시 비교되어 반 클록짜리 1이 보일 수 있습니다. 실제 시스템에서는 Mealy 출력을 다음 단의 레지스터가 클록 에지에서 샘플링하므로 이 구간은 사용되지 않습니다.</p>
+<p>수정 전 출력식(TWICE 상태만 검사)으로 같은 테스트를 돌리면 6번째 입력에서만 1이 나옵니다. 두 결과를 파형으로 비교해 보면 Mealy 출력이 &quot;현재 입력&quot;에 즉시 반응한다는 의미가 분명해집니다.</p>
+</section><section class="section" id="s09"><h2><span class="num">09</span>정리와 점검</h2><table>
+<thead>
+<tr>
+  <th>개념</th>
+  <th>핵심</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>FSM</td>
+  <td>유한한 상태 + 조건에 따른 전이</td>
+</tr>
+<tr>
+  <td>구성</td>
+  <td>State Register · Next State Logic · Output Logic</td>
+</tr>
+<tr>
+  <td>상태 갱신</td>
+  <td>클록 상승 에지에서 <code>ns</code> → <code>ps</code></td>
+</tr>
+<tr>
+  <td>Moore</td>
+  <td>출력 = f(상태), 안정적</td>
+</tr>
+<tr>
+  <td>Mealy</td>
+  <td>출력 = f(상태, 입력), 빠르고 상태 수가 적음</td>
+</tr>
+<tr>
+  <td>코딩</td>
+  <td>리셋 초기 상태, <code>default</code> 복구, <code>localparam</code> 상태 이름</td>
+</tr>
+<tr>
+  <td>출력 레지스터</td>
+  <td><code>next</code> 기준으로 저장하면 출력이 상태와 같은 에지에 안정적으로 바뀜</td>
+</tr>
+</tbody>
+</table>
 <p><strong>스스로 점검하기</strong></p>
 <ol>
-<li>Ripple Carry 가산기가 비트 수가 늘수록 느려지는 이유는 무엇인가?</li>
-<li>CLA에서 P와 G는 각각 무엇을 뜻하는가?</li>
-<li><code>always @(*)</code> 블록에 기본값을 두지 않으면 어떤 문제가 생기는가?</li>
-<li>우선순위 인코더에 입력 <code>8'b0011_0000</code>을 주면 출력은 무엇인가?</li>
-<li>가감산기에서 <code>3 − 5</code>의 결과 비트와 <code>cout</code>의 의미를 설명하시오.</li>
+<li>Moore 버튼 감지기에서 <code>z</code>가 1이 되는 것은 세 번째 <code>x=1</code>을 받은 클록인가, 그다음 클록인가?</li>
+<li>Mealy 직렬 수신기에서 입력 <code>1 0 1</code>이 들어올 때 각 클록의 출력 <code>y1y2</code>를 쓰시오.</li>
+<li>FSM_ex2에서 출력 기본값(<code>rd = 0; ds = 0;</code>)을 빼면 어떤 회로가 생기는가?</li>
+<li>FSM_ex3가 <code>state</code>가 아니라 <code>next</code>로 출력을 정하는 이유는 무엇인가?</li>
+<li>연속 비트 검출기를 3개 상태로 최소화해 다시 작성하시오.</li>
+<li>상태 이름을 <code>`define</code>으로 정의하면 생길 수 있는 문제는 무엇인가?</li>
 </ol>
 <blockquote>
-<p>HDL은 소프트웨어 코드가 아니라 하드웨어 구조를 기술하는 언어이며, 같은 회로도 다양한 방식으로 표현할 수 있습니다.</p>
+<p>FSM 코딩의 핵심은 <strong>상태 저장 · 다음 상태 결정 · 출력 생성</strong>을 명확히 분리하는 것입니다.</p>
 </blockquote>
 </section><div class="chapter-links" id="chapter-links"></div></main></div>
-<footer class="footer">Digital Design · FPGA · Verilog · v01  · 실습 결과는 실제 환경에서 검증</footer>
-<script>window.COURSE={"title": "Digital Design · FPGA · Verilog", "short_title": "DIGITAL DESIGN FPGA", "home_label": "전체 학습 안내서", "chapters": [{"id": "ch01", "number": 1, "title": "개발환경과 첫 실습", "file": "ch01_fpga_environment_v01.html"}, {"id": "ch02", "number": 2, "title": "논리 게이트와 Verilog", "file": "ch02_logic_gates_v01.html"}, {"id": "ch03", "number": 3, "title": "조합회로 설계", "file": "ch03_combinational_v01.html"}, {"id": "ch04", "number": 4, "title": "순차회로 설계", "file": "ch04_sequential_v01.html"}, {"id": "ch05", "number": 5, "title": "스톱워치와 디지털 시계", "file": "ch05_stopwatch_clock_v01.html"}, {"id": "ch06", "number": 6, "title": "Vivado IP 블록 설계", "file": "ch06_vivado_ip_v01.html"}, {"id": "ch07", "number": 7, "title": "FSM 회로 설계", "file": "ch07_fsm_v01.html"}]};</script><script>/*
+<footer class="footer">Digital Design · FPGA · Verilog · v02  · 실습 결과는 실제 환경에서 검증</footer>
+<script>window.COURSE={"title": "Digital Design · FPGA · Verilog", "short_title": "DIGITAL DESIGN FPGA", "home_label": "전체 학습 안내서", "chapters": [{"id": "ch01", "number": 1, "title": "개발환경과 첫 실습", "file": "ch01_fpga_environment_v02.html"}, {"id": "ch02", "number": 2, "title": "논리 게이트와 Verilog", "file": "ch02_logic_gates_v02.html"}, {"id": "ch03", "number": 3, "title": "조합회로 설계", "file": "ch03_combinational_v02.html"}, {"id": "ch04", "number": 4, "title": "순차회로 설계", "file": "ch04_sequential_v02.html"}, {"id": "ch05", "number": 5, "title": "스톱워치와 디지털 시계", "file": "ch05_stopwatch_clock_v02.html"}, {"id": "ch06", "number": 6, "title": "Vivado IP 블록 설계", "file": "ch06_vivado_ip_v02.html"}, {"id": "ch07", "number": 7, "title": "FSM 회로 설계", "file": "ch07_fsm_v02.html"}]};</script><script>/*
  * 교육용 HTML 공통 동작 — 유지보수용 원본 (STANDARD 4·10.3·10.4)
  * 페이지 본문은 바꾸지 않고 탐색·이전/다음·모바일 메뉴·코드 복사만 덧붙인다.
  * 입력: 페이지의 window.COURSE (tools/guide/build_guides.py가 실제 존재하는 장만 넣음),
