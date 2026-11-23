@@ -1,0 +1,4 @@
+source/dist/
+.venv/
+__pycache__/
+*.vcd

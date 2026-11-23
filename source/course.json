@@ -1,0 +1,79 @@
+{
+  "site_title": "Digital Design · FPGA · Verilog",
+  "site_subtitle": "Basys3 · Vivado · Verilog RTL · 조합회로 · 순차회로 · FSM",
+  "site_description": "Basys3 FPGA 보드와 Vivado를 이용해 개발환경 구축부터 논리 게이트, 조합회로, 순차회로, 스톱워치·디지털 시계 응용, Vivado IP 설계, FSM까지 단계별로 익히는 학습안내서입니다.",
+  "course_code": "DIGITAL DESIGN FPGA",
+  "version": "v01",
+  "chapters": [
+    {
+      "id": "ch01",
+      "number": 1,
+      "title": "개발환경과 첫 실습",
+      "subtitle": "Vivado 설치 → 보드 인식 → XDC → SW0으로 LED0 제어",
+      "slug": "ch01_fpga_environment",
+      "version": "v01",
+      "source": "content/ch01.md",
+      "tags": ["Ubuntu", "Vivado 2024.2", "Basys3", "XDC"]
+    },
+    {
+      "id": "ch02",
+      "number": 2,
+      "title": "논리 게이트와 Verilog",
+      "subtitle": "부울대수 → 기본 게이트 → 벡터·연산자 → 74 시리즈 → 구조적 설계",
+      "slug": "ch02_logic_gates",
+      "version": "v01",
+      "source": "content/ch02.md",
+      "tags": ["Gate", "Vector", "74HC51", "Instance"]
+    },
+    {
+      "id": "ch03",
+      "number": 3,
+      "title": "조합회로 설계",
+      "subtitle": "가산기 → 7세그먼트 → MUX·Decoder·ALU → 미니 프로젝트",
+      "slug": "ch03_combinational",
+      "version": "v01",
+      "source": "content/ch03.md",
+      "tags": ["Adder", "CLA", "MUX", "ALU", "Testbench"]
+    },
+    {
+      "id": "ch04",
+      "number": 4,
+      "title": "순차회로 설계",
+      "subtitle": "래치 → 플립플롭 → 레지스터 → 시프트 레지스터 → 카운터·FND",
+      "slug": "ch04_sequential",
+      "version": "v01",
+      "source": "content/ch04.md",
+      "tags": ["Flip-Flop", "Register", "Shift", "Counter", "FND"]
+    },
+    {
+      "id": "ch05",
+      "number": 5,
+      "title": "스톱워치와 디지털 시계",
+      "subtitle": "모듈 분리 → Tick 체인 → Top 연결 → Basys3 동작",
+      "slug": "ch05_stopwatch_clock",
+      "version": "v01",
+      "source": "content/ch05.md",
+      "tags": ["Stopwatch", "HH:MM", "Structural Top"]
+    },
+    {
+      "id": "ch06",
+      "number": 6,
+      "title": "Vivado IP 블록 설계",
+      "subtitle": "Block Design → IP 설정·연결 → HDL Wrapper → LED 점멸",
+      "slug": "ch06_vivado_ip",
+      "version": "v01",
+      "source": "content/ch06.md",
+      "tags": ["IP Integrator", "Clocking Wizard", "Binary Counter"]
+    },
+    {
+      "id": "ch07",
+      "number": 7,
+      "title": "FSM 회로 설계",
+      "subtitle": "FSM 구조 → Moore·Mealy → 구현 방식 비교 → 시퀀스 검출",
+      "slug": "ch07_fsm",
+      "version": "v01",
+      "source": "content/ch07.md",
+      "tags": ["FSM", "Moore", "Mealy", "Icarus Verilog"]
+    }
+  ]
+}
